@@ -787,6 +787,8 @@ const SCREEN_IDS = { menu: 'scr-menu', custom: 'scr-custom', pit: 'scr-pit', res
 function showScreen(name) {
   Object.entries(SCREEN_IDS).forEach(([k, id]) => EZUI.show(id, k === name));
   $('#hud').classList.toggle('on', name === 'hud');
+  $('#btn-set').hidden = name === 'hud';
+  EZUI.hide('scr-set');
 }
 let toastTimer = 0;
 function toast(text, ms = 1300) {
@@ -803,6 +805,13 @@ function clearOverlays() {
   clearTimeout(toastTimer); clearTimeout(countTimer);
   $('#toast').classList.remove('on'); $('#count').classList.remove('on');
 }
+function syncSet() {
+  $('#set-music').classList.toggle('off', G.musicOff); $('#set-music').textContent = G.musicOff ? '🎵 Musik: mati' : '🎵 Musik: nyala';
+  $('#set-sound').classList.toggle('off', G.mute); $('#set-sound').textContent = G.mute ? '🔇 Suara: mati' : '🔊 Suara: nyala';
+  $('#set-delchar').textContent = confirmKey === 'char' ? '❓ Yakin? Ketuk lagi' : '🗑️ Hapus karakter';
+  $('#set-reset').textContent = confirmKey === 'all' ? '❓ Yakin? Ketuk lagi' : '🧹 Mulai dari awal';
+}
+let confirmKey = '';
 function syncSys() {
   $('#btn-mute').textContent = G.mute ? '🔇' : '🔊';
   $('#btn-mute').classList.toggle('off', G.mute);
@@ -1260,11 +1269,13 @@ function updatePreview(dt) {
   camera.lookAt(0, 1.1, -1.5);
   if (G.state === 'custom') {          // dekat ke pengemudi
     const a2 = G.t * 0.5 + 0.5;
-    camera.position.set(LANE_X[1] + Math.sin(a2) * 7.5, 4.2, Math.cos(a2) * 7.5);
-    camera.lookAt(LANE_X[1], 2.0, 0);
+    const rr = innerWidth > innerHeight ? 7.5 : 13;
+    camera.position.set(LANE_X[1] + Math.sin(a2) * rr, 4.6, Math.cos(a2) * rr);
+    camera.lookAt(LANE_X[1], innerWidth > innerHeight ? 2.0 : -2.2, 0);   // portrait: pembalap naik ke atas, di atas panel
     if (innerWidth > innerHeight) camera.translateX(-2.6);
   }
   if (G.state === 'menu' && innerWidth > innerHeight) camera.translateX(-3.6);   // mobil muncul di kanan panel
+  if ((G.state === 'menu' || G.state === 'pit') && innerWidth <= innerHeight) camera.lookAt(0, -0.6, -1.5);
   if (camera.fov !== 55) { camera.fov = 55; camera.updateProjectionMatrix(); }
   const bob = Math.sin(G.t * 3) * 0.03;
   if (CAR.p) placeCar(CAR.p, LANE_X[1], 0, 0, bob);
@@ -1408,6 +1419,20 @@ $('#btn-quit').addEventListener('click', () => { if (G.state === 'race') goMenu(
 $('#btn-mute').addEventListener('click', () => {
   G.mute = !G.mute; applyAudioPrefs(); syncSys(); save();
   if (G.mute) { try { speechSynthesis.cancel(); } catch (e) { /* abaikan */ } }
+});
+$('#btn-set').addEventListener('click', () => { if (G.state === 'race') return; confirmKey = ''; syncSet(); EZUI.show('scr-set'); sfx.tick(); });
+$('#btn-set-close').addEventListener('click', () => { confirmKey = ''; EZUI.hide('scr-set'); });
+$('#set-music').addEventListener('click', () => { G.musicOff = !G.musicOff; applyAudioPrefs(); syncSys(); syncSet(); save(); });
+$('#set-sound').addEventListener('click', () => { G.mute = !G.mute; applyAudioPrefs(); syncSys(); syncSet(); save(); });
+$('#set-delchar').addEventListener('click', () => {
+  if (confirmKey !== 'char') { confirmKey = 'char'; syncSet(); return; }
+  G.char = { g: 'boy', hat: 0, shirt: 1 }; G.charSet = false; confirmKey = ''; save(); sfx.lose(); goCustom();
+});
+$('#set-reset').addEventListener('click', () => {
+  if (confirmKey !== 'all') { confirmKey = 'all'; syncSet(); return; }
+  G.coins = START_COINS; G.owned = [true, false, false, false]; G.carIdx = 0;
+  G.cust = [0, 1, 2, 3].map((c) => ({ col: c, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, shirt: 1 }; G.charSet = false;
+  confirmKey = ''; save(); sfx.lose(); goCustom();
 });
 $('#btn-music').addEventListener('click', () => { G.musicOff = !G.musicOff; applyAudioPrefs(); syncSys(); save(); });
 
