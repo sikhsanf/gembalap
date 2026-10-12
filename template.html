@@ -75,6 +75,9 @@ button{font-family:inherit}
 .ibtn{width:var(--tap);height:var(--tap);padding:0;border-radius:50%;border:3px solid var(--ink);background:var(--paper);box-shadow:0 3px 0 var(--ink);font-size:22px;line-height:1;cursor:pointer;touch-action:manipulation;display:grid;place-items:center}
 .ibtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 .ibtn.off{opacity:.5}
+.home{display:flex;flex-direction:column;gap:14px;padding-top:12px}
+.pill.big{width:100%;min-height:calc(var(--tap) + 14px);font-size:24px}
+.chips.pick .ccard{flex:1 1 120px;padding:14px 6px}.chips.pick .ccard .e{font-size:44px}
 .setlist{display:flex;flex-direction:column;gap:12px;padding-top:8px}.setlist .pill{width:100%;justify-content:flex-start}.setlist .pill.off{opacity:.5}
 #toast{position:absolute;left:50%;top:24%;transform:translateX(-50%);z-index:45;padding:8px 18px;background:var(--paper);border:4px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);font:800 clamp(18px,4vmin,28px)/1.2 var(--f-display);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
 #toast.on{opacity:1}
@@ -108,8 +111,8 @@ button{font-family:inherit}
 .ccard.lock .lk{position:absolute;top:4px;right:6px;font-size:18px}
 .ccard.lock.buy{background:var(--sun);box-shadow:0 4px 0 var(--ink)}
 .ccard.lock.buy .ci{filter:none;opacity:1}
-.sw{display:flex;gap:10px;flex-wrap:wrap}
-.swb{width:48px;height:48px;border-radius:14px;border:3px solid var(--ink);cursor:pointer;padding:0;touch-action:manipulation}
+.sw{display:flex;gap:7px;flex-wrap:wrap}
+.swb{width:42px;height:42px;border-radius:14px;border:3px solid var(--ink);cursor:pointer;padding:0;touch-action:manipulation}
 .swb.sel{box-shadow:0 0 0 4px var(--sun),0 4px 0 4px var(--ink);transform:translateY(-2px)}
 .dice{display:flex;gap:12px;justify-content:center}
 .die{display:inline-grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:2px;width:clamp(44px,9vmin,64px);aspect-ratio:1;padding:6px;background:#fff;border:3px solid var(--ink);border-radius:12px;box-shadow:0 3px 0 var(--ink)}
@@ -174,36 +177,40 @@ button{font-family:inherit}
   <div id="count"></div>
   <div id="toast"></div>
 
-  <!-- Garasi: panel samping kiri (pola "side editor" EZUI) -->
+  <!-- Beranda: menu utama -->
   <div class="ov side" id="scr-menu"><div class="panel">
     <div class="phead"><h2 class="logo">GEMBALAP</h2><div class="acts"><span class="chip">🪙 <b id="menu-coins">20</b></span></div></div>
-    <div class="pbody">
-      <div class="cols">
-        <div>
-          <h3>Mobilku</h3><div class="chips" id="menu-cars"></div>
-          <h3>Pilih lintasan</h3><div class="chips" id="menu-tracks"></div>
-        </div>
-        <div>
-          <h3>Tingkat</h3><div class="chips" id="menu-diffs"></div>
-          <h3>Petunjuk jarak</h3><div class="chips" id="menu-levels"></div>
-          <h3>Mode</h3>
-          <div class="chips"><button class="ccard sel"><span class="e">🤖</span>Vs Komputer</button><button class="ccard" disabled><span class="e">🌐</span>Multiplayer<small>segera hadir</small></button></div>
-          <p id="menu-note"></p>
-        </div>
-      </div>
+    <div class="pbody home">
+      <button class="pill go big" id="btn-race">🏁 Balapan</button>
+      <button class="pill big" id="btn-garage-open">🔧 Garage</button>
+      <p id="menu-note"></p>
       <p class="ver" id="ver"></p>
     </div>
-    <div class="pfoot"><button class="pill go" id="btn-play">Main! 🏁</button></div>
+  </div></div>
+
+  <!-- Balapan langkah 1: tingkat -->
+  <div class="ov dlg" id="scr-diff"><div class="panel md">
+    <div class="phead"><h2>Pilih tingkat</h2><div class="acts"><button class="xbtn" data-for="btn-diff-back" aria-label="Kembali">✕</button></div></div>
+    <div class="pbody"><div class="chips pick" id="menu-diffs"></div></div>
+    <div class="pfoot"><button class="pill" id="btn-diff-back">← Kembali</button><button class="pill go" id="btn-diff-next">Lanjut ▶</button></div>
+  </div></div>
+
+  <!-- Balapan langkah 2: lintasan -->
+  <div class="ov dlg" id="scr-track"><div class="panel md">
+    <div class="phead"><h2>Pilih lintasan</h2><div class="acts"><button class="xbtn" data-for="btn-track-back" aria-label="Kembali">✕</button></div></div>
+    <div class="pbody"><div class="chips pick" id="menu-tracks"></div></div>
+    <div class="pfoot"><button class="pill" id="btn-track-back">← Kembali</button><button class="pill go" id="btn-play">Main! 🏁</button></div>
   </div></div>
 
   <!-- Kustom: pembalap + mobil -->
   <div class="ov side" id="scr-custom"><div class="panel">
-    <div class="phead"><h2>🎨 Kustom</h2></div>
+    <div class="phead"><h2>🔧 Garage</h2><div class="acts"><span class="chip">🪙 <b id="cu-coins">0</b></span></div></div>
     <div class="pbody">
       <div class="cols">
         <div>
+          <h3>Mobilku</h3><div class="chips" id="menu-cars"></div>
           <h3>Pembalap</h3><div class="chips" id="cu-g"></div>
-          <h3>Topi</h3><div class="chips" id="cu-hat"></div>
+          <h3>Helm</h3><div class="chips sw" id="cu-hat"></div><div class="chips" id="cu-hs"></div>
           <h3>Baju</h3><div class="chips sw" id="cu-shirt"></div>
         </div>
         <div>
@@ -239,6 +246,7 @@ button{font-family:inherit}
   <div class="ov dlg top" id="scr-set"><div class="panel sm">
     <div class="phead"><h2>⚙️ Pengaturan</h2><div class="acts"><button class="xbtn" data-for="btn-set-close" aria-label="Tutup">✕</button></div></div>
     <div class="pbody setlist">
+      <h3>Petunjuk jarak</h3><div class="chips" id="set-level"></div>
       <button class="pill" id="set-music">🎵 Musik</button>
       <button class="pill" id="set-sound">🔊 Suara</button>
       <button class="pill warn" id="set-delchar">🗑️ Hapus karakter</button>

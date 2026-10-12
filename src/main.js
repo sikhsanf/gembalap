@@ -25,7 +25,6 @@ const CARS = [
   { short: 'Jip', name: 'Jip Hijau',    emoji: '🚙' },
 ];
 const SHIRTS = [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xff6fa8, 0x8e44ff];
-const HATS = ['🚫', '🧢', '⛑️', '👑', '🤠'];
 const ACC_ICON = ['🏁', '🚨', '🪧', '💡'];
 const TRACKS = [
   { name: 'Desa',   emoji: '🌾', len: 'Pendek', flags: 4, sky: 0x9ad8ff, ground: 0x6dbf4b, theme: 'desa' },
@@ -56,7 +55,7 @@ function shade(hex, f) { const c = new THREE.Color(hex); c.multiplyScalar(f); re
 
 /* ======================= STATE & SAVE ======================= */
 const SAVE_KEY = 'balap-voxel-v1';
-const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, shirt: 1 }, charSet: false, owned: [true, false, false, false], buying: -1,
+const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, hs: 0, shirt: 1 }, charSet: false, owned: [true, false, false, false], buying: -1,
   cust: [{ col: 0, acc: 0, lv: 0 }, { col: 1, acc: 0, lv: 0 }, { col: 2, acc: 0, lv: 0 }, { col: 3, acc: 0, lv: 0 }], state: 'menu', fill: 0, R: null, t: 0 };
 function loadSave() {
   try {
@@ -68,7 +67,7 @@ function loadSave() {
     if (typeof j.mute === 'boolean') G.mute = j.mute;
     if (typeof j.musicOff === 'boolean') G.musicOff = j.musicOff;
     if (j.diff === 'easy' || j.diff === 'hard' || j.diff === 'curvy') G.diff = j.diff;
-    if (j.char) G.char = { g: j.char.g === 'girl' ? 'girl' : 'boy', hat: clamp(j.char.hat | 0, 0, 4), shirt: clamp(j.char.shirt | 0, 0, 5) };
+    if (j.char) G.char = { g: j.char.g === 'girl' ? 'girl' : 'boy', hat: clamp(j.char.hat | 0, 0, 5), hs: clamp(j.char.hs | 0, 0, 2), shirt: clamp(j.char.shirt | 0, 0, 5) };
     if (j.charSet === true) G.charSet = true;
     if (Array.isArray(j.owned) && j.owned.length === 4) G.owned = j.owned.map((v, i) => i === 0 || v === true);
     if (Array.isArray(j.cust) && j.cust.length === 4) G.cust = j.cust.map((c, i) => ({ col: clamp(c.col | 0, 0, 3), acc: c.acc ? 1 : 0, lv: clamp(c.lv | 0, 0, 3) }));
@@ -499,25 +498,21 @@ const ROOF = [[1.78, -0.35], [2.01, 0.45], [2.07, 0.45], [2.51, -0.5]];
 function buildDriver(g, ch, model) {
   const d = new THREE.Group();
   d.position.set(0, ROOF[model][0] - 0.15, ROOF[model][1]);
-  const shirt = SHIRTS[ch.shirt], girl = ch.g === 'girl', hair = girl ? 0x5d3a1a : 0x2b1b12;
+  const shirt = SHIRTS[ch.shirt], girl = ch.g === 'girl';
   vox(d, 0, 0.1, 0, 1.15, 0.9, 0.7, shirt);
   [-1, 1].forEach((sx) => vox(d, sx * 0.68, 0.15, 0.05, 0.28, 0.7, 0.4, shirt));
   vox(d, 0, 0.9, 0, 0.8, 0.8, 0.8, SKIN);
   [-0.2, 0.2].forEach((x) => vox(d, x, 0.95, 0.41, 0.14, 0.14, 0.05, 0x222222));
   vox(d, 0, 0.72, 0.41, 0.3, 0.07, 0.05, 0xd9534f);
-  if (ch.hat !== 2) {
-    vox(d, 0, 1.34, -0.02, 0.86, 0.18, 0.86, hair);
-    vox(d, 0, 1.0, -0.4, 0.86, 0.7, 0.14, hair);
-    if (girl) {
-      vox(d, 0, 0.5, -0.43, 0.86, 0.6, 0.14, hair);
-      [-1, 1].forEach((sx) => vox(d, sx * 0.46, 1.1, 0.0, 0.14, 0.5, 0.5, hair));
-      if (ch.hat === 0) [-1, 1].forEach((sx) => vox(d, sx * 0.44, 1.38, 0.1, 0.2, 0.22, 0.22, 0xff4d8d));
-    } else vox(d, 0, 1.25, 0.38, 0.86, 0.16, 0.1, hair);
-  }
-  if (ch.hat === 1) { vox(d, 0, 1.5, 0, 0.94, 0.28, 0.94, 0xff7043); vox(d, 0, 1.4, 0.55, 0.8, 0.08, 0.42, 0xd84315); }
-  else if (ch.hat === 2) { vox(d, 0, 1.2, 0, 0.98, 0.62, 0.98, 0xffffff); vox(d, 0, 1.52, 0, 0.2, 0.05, 1.0, 0xe53935); vox(d, 0, 1.0, 0.5, 0.82, 0.16, 0.06, 0x263238); }
-  else if (ch.hat === 3) { vox(d, 0, 1.52, 0, 0.88, 0.24, 0.88, 0xffd600); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => vox(d, a * 0.33, 1.74, b * 0.33, 0.2, 0.24, 0.2, 0xffd600)); vox(d, 0, 1.52, 0.45, 0.2, 0.14, 0.05, 0xe53935); }
-  else if (ch.hat === 4) { vox(d, 0, 1.45, 0, 1.6, 0.1, 1.6, 0x8d5524); vox(d, 0, 1.72, 0, 0.82, 0.46, 0.82, 0x8d5524); vox(d, 0, 1.55, 0, 0.86, 0.1, 0.86, 0x5d3a1a); }
+  // semua pembalap wajib pakai helm (warna + corak bisa dipilih)
+  const hc = SHIRTS[ch.hat], hl = shade(hc, 0.75), st = (hc === 0xfdd835 || hc === 0xff6fa8) ? 0x263238 : 0xffffff;
+  vox(d, 0, 1.38, 0, 1.0, 0.3, 1.0, hc);                    // atas
+  vox(d, 0, 1.0, -0.45, 1.0, 0.8, 0.14, hc);                // belakang
+  [-1, 1].forEach((sx) => vox(d, sx * 0.47, 1.0, 0.02, 0.14, 0.8, 0.9, hc));   // samping
+  vox(d, 0, 1.22, 0.5, 1.0, 0.14, 0.1, hl);                 // alis helm
+  if (girl) vox(d, 0, 0.55, -0.43, 0.86, 0.6, 0.14, 0x5d3a1a);   // rambut panjang keluar dari bawah helm
+  if (ch.hs === 1) vox(d, 0, 1.55, 0, 0.22, 0.05, 1.02, st);
+  else if (ch.hs === 2) { [-1, 1].forEach((sx) => vox(d, sx * 0.55, 1.05, 0.02, 0.05, 0.3, 0.3, st)); vox(d, 0, 1.55, 0, 0.3, 0.05, 0.3, st); }
   g.add(d);
 }
 function buildTruck() {
@@ -550,7 +545,7 @@ const mySpec = () => { const c = G.cust[G.carIdx]; return { m: G.carIdx, c: c.co
 function oppSpecs(rng, pc) {          // dua lawan: warna beda dari pemain & dari satu sama lain
   const cols = shuffle([0, 1, 2, 3].filter((c) => c !== pc), rng);
   return [0, 1].map((i) => ({ m: Math.floor(rng() * 4), c: cols[i], acc: rng() < 0.5 ? 1 : 0, lv: Math.floor(rng() * 4),
-    drv: { g: rng() < 0.5 ? 'boy' : 'girl', hat: Math.floor(rng() * 5), shirt: Math.floor(rng() * 6) } }));
+    drv: { g: rng() < 0.5 ? 'boy' : 'girl', hat: Math.floor(rng() * 6), hs: Math.floor(rng() * 3), shirt: Math.floor(rng() * 6) } }));
 }
 function mountCar(which, sp) {
   if (CAR[which]) scene.remove(CAR[which]);
@@ -783,7 +778,7 @@ function resize() {
 addEventListener('resize', resize);
 
 /* ======================= UI (standar EZUI dari Ezventure) ======================= */
-const SCREEN_IDS = { menu: 'scr-menu', custom: 'scr-custom', pit: 'scr-pit', result: 'scr-result' };
+const SCREEN_IDS = { menu: 'scr-menu', diff: 'scr-diff', track: 'scr-track', custom: 'scr-custom', pit: 'scr-pit', result: 'scr-result' };
 function showScreen(name) {
   Object.entries(SCREEN_IDS).forEach(([k, id]) => EZUI.show(id, k === name));
   $('#hud').classList.toggle('on', name === 'hud');
@@ -808,6 +803,7 @@ function clearOverlays() {
 function syncSet() {
   $('#set-music').classList.toggle('off', G.musicOff); $('#set-music').textContent = G.musicOff ? '🎵 Musik: mati' : '🎵 Musik: nyala';
   $('#set-sound').classList.toggle('off', G.mute); $('#set-sound').textContent = G.mute ? '🔇 Suara: mati' : '🔊 Suara: nyala';
+  $('#set-level').innerHTML = [[1, '🚩', 'Bendera'], [2, '🖐️', 'Jari'], [3, '🎲', 'Dadu']].map(([v, e, l]) => _menuCard(G.level === v, v, e, l, '')).join('');
   $('#set-delchar').textContent = confirmKey === 'char' ? '❓ Yakin? Ketuk lagi' : '🗑️ Hapus karakter';
   $('#set-reset').textContent = confirmKey === 'all' ? '❓ Yakin? Ketuk lagi' : '🧹 Mulai dari awal';
 }
@@ -842,6 +838,14 @@ function carSvg(m, ci, acc, lv) {
   o += r(8, 21, 11, 11, DK, 'rx="3"') + r(37, 21, 11, 11, DK, 'rx="3"');
   return `<svg class="ci" viewBox="0 -3 56 38" aria-hidden="true">${o}</svg>`;
 }
+function helmSvg(ci, st) {
+  const c = '#' + SHIRTS[ci].toString(16).padStart(6, '0'), S = 'stroke="#2b2350" stroke-width="2" stroke-linejoin="round"';
+  const sc = (ci === 2 || ci === 4) ? '#263238' : '#fff';
+  let o = `<path d="M5 28 A15 17 0 0 1 35 28 Z" fill="${c}" ${S}/><rect x="20" y="19" width="16" height="9" rx="2" fill="#9fd8f5" ${S}/>`;
+  if (st === 1) o += `<rect x="17" y="6" width="4" height="13" fill="${sc}"/>`;
+  else if (st === 2) o += `<circle cx="11" cy="21" r="2.5" fill="${sc}"/><circle cx="17" cy="14" r="2.5" fill="${sc}"/><circle cx="12" cy="14" r="2" fill="${sc}"/>`;
+  return `<svg class="ci" viewBox="0 0 40 32" aria-hidden="true" style="max-width:44px">${o}</svg>`;
+}
 const diceHtml = (n) => {
   const on = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] }[n];
   return `<span class="die">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((c) => `<i class="${on.includes(c) ? 'on' : ''}"></i>`).join('')}</span>`;
@@ -865,16 +869,17 @@ function renderMenu() {
     if (G.owned[i]) return `<button class="ccard car ${i === G.carIdx ? 'sel' : ''}" data-i="${i}" aria-label="${c.name}">${icon}</button>`;
     const buy = G.buying === i;
     return `<button class="ccard car lock ${buy ? 'buy' : ''}" data-i="${i}" aria-label="${c.name}">${icon}<span class="lk">${buy ? '✔' : '🔒'}</span><small>🪙 ${CAR_PRICE[i]}</small></button>`;
-  }).join('') + card(false, 'k', '🎨', '', '', 'car');
+  }).join('');
   $('#menu-tracks').innerHTML = TRACKS.map((t, i) => card(i === G.trackIdx, i, t.emoji, t.name, t.len)).join('');
   $('#menu-diffs').innerHTML = [['easy', '😊', 'Mudah', 'ikuti jalur'], ['hard', '🔥', 'Normal', 'setir bebas'], ['curvy', '🌪️', 'Sulit', 'berbelok']]
     .map(([v, e, l, sm]) => card(G.diff === v, v, e, l, sm)).join('');
-  $('#menu-levels').innerHTML = [[1, '🚩', 'Bendera'], [2, '🖐️', 'Jari'], [3, '🎲', 'Dadu']].map(([v, e, l]) => card(G.level === v, v, e, l, '')).join('');
+  $('#cu-coins').textContent = G.coins;
 }
 function renderCustom() {
   const c = G.cust[G.carIdx], card = _menuCard;
   $('#cu-g').innerHTML = [['boy', '👦'], ['girl', '👧']].map(([v, e]) => card(G.char.g === v, v, e, '', '', 'big')).join('');
-  $('#cu-hat').innerHTML = HATS.map((e, i) => card(G.char.hat === i, i, e, '', '', 'big')).join('');
+  $('#cu-hat').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<button class="swb ${G.char.hat === i ? 'sel' : ''}" data-i="${i}" style="background:#${SHIRTS[i].toString(16).padStart(6, '0')}" aria-label="warna helm"></button>`).join('');
+  $('#cu-hs').innerHTML = [0, 1, 2].map((i) => `<button class="ccard car ${G.char.hs === i ? 'sel' : ''}" data-i="${i}">${helmSvg(G.char.hat, i)}</button>`).join('');
   const sw = (cur, arr) => arr.map((h, i) => `<button class="swb ${cur === i ? 'sel' : ''}" data-i="${i}" style="background:#${h.toString(16).padStart(6, '0')}" aria-label="warna"></button>`).join('');
   $('#cu-shirt').innerHTML = sw(G.char.shirt, SHIRTS);
   $('#cu-col').innerHTML = sw(c.col, COLORS.map((x) => x.hex));
@@ -1350,11 +1355,13 @@ function goMenu() {
   renderMenu(); showScreen('menu');
 }
 function setupPreview() { buildWorld(G.trackIdx, previewLayout(), G.diff); mountPreview(); }
+function goDiff() { G.state = 'pick'; clearOverlays(); setMusic('menu'); renderMenu(); showScreen('diff'); }
+function goTrack() { G.state = 'pick'; renderMenu(); showScreen('track'); }
 function goCustom() {
   G.state = 'custom'; G.buying = -1;
   setMusic('menu');
   setupPreview();
-  renderCustom(); showScreen('custom');
+  renderMenu(); renderCustom(); showScreen('custom');
 }
 function goPit() {
   clearOverlays();
@@ -1373,7 +1380,7 @@ $('#menu-cars').addEventListener('click', (e) => {
   else if (G.coins >= CAR_PRICE[i]) {                                          // ketuk kedua: beli
     G.coins -= CAR_PRICE[i]; G.owned[i] = true; G.carIdx = i; G.buying = -1; save(); sfx.win(); toast('Mobil baru! 🎉', 1400); setupPreview();
   } else { G.buying = -1; sfx.lose(); toast('Uangmu kurang! 🪙', 1000); }
-  renderMenu();
+  renderMenu(); renderCustom();
 });
 $('#menu-tracks').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
@@ -1387,14 +1394,17 @@ $('#menu-diffs').addEventListener('click', (e) => {
   buildWorld(G.trackIdx, previewLayout(), G.diff);
   renderMenu();
 });
-$('#menu-levels').addEventListener('click', (e) => {
-  const t = e.target.closest('[data-i]'); if (!t) return;
-  G.level = +t.dataset.i; save(); sfx.tick(); renderMenu();
-});
 $('#btn-play').addEventListener('click', () => { sfx.beep(); goPit(); });
+$('#btn-race').addEventListener('click', () => { sfx.beep(); goDiff(); });
+$('#btn-garage-open').addEventListener('click', () => { sfx.tick(); goCustom(); });
+$('#btn-diff-back').addEventListener('click', goMenu);
+$('#btn-diff-next').addEventListener('click', () => { sfx.tick(); goTrack(); });
+$('#btn-track-back').addEventListener('click', goDiff);
+$('#set-level').addEventListener('click', (e) => { const t = e.target.closest('[data-i]'); if (!t) return; G.level = clamp(+t.dataset.i, 1, 3); save(); sfx.tick(); syncSet(); });
 const onCu = (id, fn) => $(id).addEventListener('click', (e) => { const t = e.target.closest('[data-i]'); if (!t) return; fn(t.dataset.i); save(); sfx.tick(); mountCar('p', mySpec()); renderCustom(); });
 onCu('#cu-g', (v) => { G.char.g = v === 'girl' ? 'girl' : 'boy'; });
-onCu('#cu-hat', (v) => { G.char.hat = clamp(+v, 0, 4); });
+onCu('#cu-hat', (v) => { G.char.hat = clamp(+v, 0, 5); });
+onCu('#cu-hs', (v) => { G.char.hs = clamp(+v, 0, 2); });
 onCu('#cu-shirt', (v) => { G.char.shirt = clamp(+v, 0, 5); });
 onCu('#cu-col', (v) => { G.cust[G.carIdx].col = clamp(+v, 0, 3); setupPreview(); });
 onCu('#cu-acc', (v) => { G.cust[G.carIdx].acc = +v ? 1 : 0; });
@@ -1426,12 +1436,12 @@ $('#set-music').addEventListener('click', () => { G.musicOff = !G.musicOff; appl
 $('#set-sound').addEventListener('click', () => { G.mute = !G.mute; applyAudioPrefs(); syncSys(); syncSet(); save(); });
 $('#set-delchar').addEventListener('click', () => {
   if (confirmKey !== 'char') { confirmKey = 'char'; syncSet(); return; }
-  G.char = { g: 'boy', hat: 0, shirt: 1 }; G.charSet = false; confirmKey = ''; save(); sfx.lose(); goCustom();
+  G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false; confirmKey = ''; save(); sfx.lose(); goCustom();
 });
 $('#set-reset').addEventListener('click', () => {
   if (confirmKey !== 'all') { confirmKey = 'all'; syncSet(); return; }
   G.coins = START_COINS; G.owned = [true, false, false, false]; G.carIdx = 0;
-  G.cust = [0, 1, 2, 3].map((c) => ({ col: c, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, shirt: 1 }; G.charSet = false;
+  G.cust = [0, 1, 2, 3].map((c) => ({ col: c, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false;
   confirmKey = ''; save(); sfx.lose(); goCustom();
 });
 $('#btn-music').addEventListener('click', () => { G.musicOff = !G.musicOff; applyAudioPrefs(); syncSys(); save(); });
