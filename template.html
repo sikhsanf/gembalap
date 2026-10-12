@@ -131,6 +131,7 @@ button{font-family:inherit}
   #h-bar{order:3;flex:0 0 100%;max-width:none;margin-top:20px}
   .hstack>.chip:nth-child(2){order:4}
   #h-hint{order:5;flex:1;min-width:0}
+  #h-rain{order:6}
 }
 @media (max-width:760px) and (orientation:portrait){#toast{top:36%}#count{top:30%}#boosttxt{top:44%}}
 .fs{width:12px;height:24px}
@@ -161,6 +162,7 @@ button{font-family:inherit}
       <div class="hstack">
         <span class="chip" id="h-pos">1/2</span>
         <span class="chip">⛽ <span id="h-fuel"></span></span>
+        <span class="chip" id="h-rain" hidden>🌧️ Licin</span>
       </div>
       <div class="hc">
         <div id="h-bar"><div id="h-ticks"></div><div class="mk" id="h-am"></div><div class="mk" id="h-bm"></div><div class="mk" id="h-pm"></div></div>
@@ -183,6 +185,7 @@ button{font-family:inherit}
     <div class="pbody home">
       <button class="pill go big" id="btn-race">🏁 Balapan</button>
       <button class="pill big" id="btn-garage-open">🔧 Garage</button>
+      <button class="pill big" id="btn-wardrobe-open">👕 Lemari</button>
       <p id="menu-note"></p>
       <p class="ver" id="ver"></p>
     </div>
@@ -202,25 +205,39 @@ button{font-family:inherit}
     <div class="pfoot"><button class="pill" id="btn-track-back">← Kembali</button><button class="pill go" id="btn-play">Main! 🏁</button></div>
   </div></div>
 
-  <!-- Kustom: pembalap + mobil -->
+  <!-- Garage: mobil (pilih/beli, warna, aksesori, livery) -->
   <div class="ov side" id="scr-custom"><div class="panel">
     <div class="phead"><h2>🔧 Garage</h2><div class="acts"><span class="chip">🪙 <b id="cu-coins">0</b></span></div></div>
     <div class="pbody">
       <div class="cols">
         <div>
           <h3>Mobilku</h3><div class="chips" id="menu-cars"></div>
-          <h3>Pembalap</h3><div class="chips" id="cu-g"></div>
-          <h3>Helm</h3><div class="chips sw" id="cu-hat"></div><div class="chips" id="cu-hs"></div>
-          <h3>Baju</h3><div class="chips sw" id="cu-shirt"></div>
+          <h3>Warna mobil</h3><div class="chips sw" id="cu-col"></div>
         </div>
         <div>
-          <h3>Warna mobil</h3><div class="chips sw" id="cu-col"></div>
           <h3>Aksesori</h3><div class="chips" id="cu-acc"></div>
           <h3>Livery</h3><div class="chips" id="cu-lv"></div>
         </div>
       </div>
     </div>
     <div class="pfoot"><button class="pill go" id="btn-cu-ok">Siap! ✓</button></div>
+  </div></div>
+
+  <!-- Lemari: helm + baju -->
+  <div class="ov side" id="scr-wardrobe"><div class="panel">
+    <div class="phead"><h2>👕 Lemari</h2></div>
+    <div class="pbody">
+      <h3>Helm</h3><div class="chips sw" id="cu-hat"></div><div class="chips" id="cu-hs"></div>
+      <h3>Baju</h3><div class="chips sw" id="cu-shirt"></div>
+    </div>
+    <div class="pfoot"><button class="pill go" id="btn-wd-ok">Siap! ✓</button></div>
+  </div></div>
+
+  <!-- Awal main: pilih pembalap (sekali saja) -->
+  <div class="ov side" id="scr-hero"><div class="panel">
+    <div class="phead"><h2>Siapa kamu?</h2></div>
+    <div class="pbody"><div class="chips pick" id="cu-g"></div></div>
+    <div class="pfoot"><button class="pill go" id="btn-hero-ok">Mulai! ✓</button></div>
   </div></div>
 
   <!-- Pom bensin: dialog tengah, bottom sheet di HP portrait -->

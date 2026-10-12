@@ -151,6 +151,8 @@ function tone(f, d, type = 'square', v = 0.05, f2 = 0, delay = 0) {
 const sfx = {
   coin: () => { tone(988, 0.07, 'square', 0.05); tone(1319, 0.16, 'square', 0.05, 0, 0.07); },
   tick: () => tone(520, 0.05, 'square', 0.04),
+  bump: () => { if (!okSfx()) return; const t = A.ctx.currentTime; oscHit('sine', 150, 45, t, 0.2, 0.3, A.sfx, 0.002); noiseHit(t, 0.12, 'bandpass', 700, 200, 0.2, 1, A.sfx); },
+  fuel: () => { tone(523, 0.08, 'square', 0.05); tone(659, 0.08, 'square', 0.05, 0, 0.08); tone(784, 0.08, 'square', 0.05, 0, 0.16); tone(1047, 0.2, 'square', 0.05, 0, 0.24); },
   beep: () => tone(440, 0.15, 'square', 0.07),
   go: () => { tone(880, 0.4, 'square', 0.07); tone(1175, 0.4, 'square', 0.05); tone(1568, 0.4, 'triangle', 0.05); },
   flag: () => { tone(660, 0.1, 'triangle', 0.06); tone(990, 0.14, 'triangle', 0.06, 0, 0.08); },
@@ -197,11 +199,17 @@ function buildEngine() {
   const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 800; bp.Q.value = 0.5;
   const wg = ctx.createGain(); wg.gain.value = 0;
   ns.connect(bp); bp.connect(wg); wg.connect(A.sfx); ns.start();
-  A.eng = { g, lp, o1, o2, o3 }; A.wind = { wg, bp };
+  const rn = ctx.createBufferSource(); rn.buffer = A.noise; rn.loop = true;
+  const rh = ctx.createBiquadFilter(); rh.type = 'highpass'; rh.frequency.value = 2200;
+  const rg = ctx.createGain(); rg.gain.value = 0;
+  rn.connect(rh); rh.connect(rg); rg.connect(A.sfx); rn.start();
+  A.eng = { g, lp, o1, o2, o3 }; A.wind = { wg, bp }; A.rain = { rg };
 }
-function engineUpdate(speed, boosting, running) {
+function engineUpdate(speed, boosting, running, rain = 0) {
   if (!A.eng || A.offline) return;
-  const t = A.ctx.currentTime, k = clamp(speed / (BASE * BOOST), 0, 1.1);
+  const t = A.ctx.currentTime;
+  if (A.rain) A.rain.rg.gain.setTargetAtTime(rain * 0.16, t, 0.3);
+  const k = clamp(speed / (BASE * BOOST), 0, 1.1);
   const f = 46 + k * 78 + (boosting ? 26 : 0);
   A.eng.o1.frequency.setTargetAtTime(f, t, 0.08);
   A.eng.o3.frequency.setTargetAtTime(f * 1.012, t, 0.08);
@@ -341,7 +349,8 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 420);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a9bb0, 1.7));
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8a9bb0, 1.7);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffffff, 1.9);
 sun.position.set(-30, 50, 25);
 scene.add(sun);
@@ -541,7 +550,8 @@ function makeCarObject(sp) {
   return outer;
 }
 const CAR = { p: null, a: null, b: null };
-const mySpec = () => { const c = G.cust[G.carIdx]; return { m: G.carIdx, c: c.col, acc: c.acc, lv: c.lv, drv: G.char }; };
+const specOf = (i) => { const c = G.cust[i]; return { m: i, c: c.col, acc: c.acc, lv: c.lv, drv: G.char }; };
+const mySpec = () => specOf(G.carIdx);
 function oppSpecs(rng, pc) {          // dua lawan: warna beda dari pemain & dari satu sama lain
   const cols = shuffle([0, 1, 2, 3].filter((c) => c !== pc), rng);
   return [0, 1].map((i) => ({ m: Math.floor(rng() * 4), c: cols[i], acc: rng() < 0.5 ? 1 : 0, lv: Math.floor(rng() * 4),
@@ -654,6 +664,7 @@ function buildWorld(ti, layout, mode) {
   const rng = mulberry32(1337 + ti * 101);
   scene.background = new THREE.Color(T.sky);
   scene.fog = new THREE.Fog(T.sky, 80, 270);
+  hemi.intensity = 1.7;
 
   const sA = -40, sB = len + 130, L = sB - sA, zc = -(sA + sB) / 2;
   b.raw(0, -0.8, zc, 460, 1, L, T.ground);                 // tanah
@@ -759,7 +770,7 @@ function buildWorld(ti, layout, mode) {
   const dyn = new THREE.Group();
   group.add(dyn);
   scene.add(group);
-  world = { group, dyn, N, len, layout, ti };
+  world = { group, dyn, N, len, layout, ti, sky: T.sky };
 }
 
 /* ======================= KAMERA ======================= */
@@ -778,7 +789,7 @@ function resize() {
 addEventListener('resize', resize);
 
 /* ======================= UI (standar EZUI dari Ezventure) ======================= */
-const SCREEN_IDS = { menu: 'scr-menu', diff: 'scr-diff', track: 'scr-track', custom: 'scr-custom', pit: 'scr-pit', result: 'scr-result' };
+const SCREEN_IDS = { menu: 'scr-menu', diff: 'scr-diff', track: 'scr-track', custom: 'scr-custom', wardrobe: 'scr-wardrobe', hero: 'scr-hero', pit: 'scr-pit', result: 'scr-result' };
 function showScreen(name) {
   Object.entries(SCREEN_IDS).forEach(([k, id]) => EZUI.show(id, k === name));
   $('#hud').classList.toggle('on', name === 'hud');
@@ -877,7 +888,7 @@ function renderMenu() {
 }
 function renderCustom() {
   const c = G.cust[G.carIdx], card = _menuCard;
-  $('#cu-g').innerHTML = [['boy', '👦'], ['girl', '👧']].map(([v, e]) => card(G.char.g === v, v, e, '', '', 'big')).join('');
+  $('#cu-g').innerHTML = [['boy', '👦', 'Cowok'], ['girl', '👧', 'Cewek']].map(([v, e, l]) => card(G.char.g === v, v, e, l, '', 'big')).join('');
   $('#cu-hat').innerHTML = [0, 1, 2, 3, 4, 5].map((i) => `<button class="swb ${G.char.hat === i ? 'sel' : ''}" data-i="${i}" style="background:#${SHIRTS[i].toString(16).padStart(6, '0')}" aria-label="warna helm"></button>`).join('');
   $('#cu-hs').innerHTML = [0, 1, 2].map((i) => `<button class="ccard car ${G.char.hs === i ? 'sel' : ''}" data-i="${i}">${helmSvg(G.char.hat, i)}</button>`).join('');
   const sw = (cur, arr) => arr.map((h, i) => `<button class="swb ${cur === i ? 'sel' : ''}" data-i="${i}" style="background:#${h.toString(16).padStart(6, '0')}" aria-label="warna"></button>`).join('');
@@ -1001,8 +1012,9 @@ function previewLayout() {
   return makePads(T.flags, rng, G.cust[G.carIdx].col, o[0].c, o[1].c);
 }
 function mountPreview() {
-  const o = oppSpecs(mulberry32(5), G.cust[G.carIdx].col);
-  mountCar('p', mySpec()); mountCar('a', o[0]); mountCar('b', o[1]);
+  const sp = specOf(G.buying >= 0 ? G.buying : G.carIdx);      // mobil yang belum dibeli ikut dipratinjau
+  const o = oppSpecs(mulberry32(5), sp.c);
+  mountCar('p', sp); mountCar('a', o[0]); mountCar('b', o[1]);
 }
 
 function respawnStreak(m, cz) {
@@ -1030,7 +1042,18 @@ function prepareRace() {
     bots: [bot(opp[0], CAR.a, 2, AI_SKILL, AI_BASE, 0.6), bot(opp[1], CAR.b, 0, AI_SKILL - 0.1, AI_BASE - 0.4, 0.9)],
     got: 0, lastSeg: 0, coinList: [], parts: [], fx: 0, towed: false, truck: null, truckS: 0, boostToast: -9, doneT: 0,
     hudPos: 0, hudRem: -1, fxOn: false, streaks: [], streakMat: null,
+    F0: 0, bumpCd: {}, shake: 0, rainLvl: 0, rainFrom: -1, rainTo: -1, rainMsg: false, drops: [],
   };
+  if (G.forceRain || rng() < 0.5) {                    // hujan acak: sebagian lintasan
+    R.rainFrom = G.forceRain ? 0 : R.len * (0.1 + rng() * 0.3);
+    R.rainTo = G.forceRain ? R.len + 50 : Math.min(R.len + 50, R.rainFrom + R.len * (0.45 + rng() * 0.4));
+  }
+  const dropMat = new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0, depthWrite: false });
+  R.dropMat = dropMat;
+  for (let i = 0; i < 220; i++) {
+    const m = new THREE.Mesh(boxGeo, dropMat); m.scale.set(0.05, 1.3, 0.05); m.visible = false;
+    world.dyn.add(m); R.drops.push(m);
+  }
   // koin: 1 baris (3 koin) per segmen
   const coinGeo = new THREE.BoxGeometry(0.9, 0.9, 0.25);
   const coinMat = new THREE.MeshLambertMaterial({ color: 0xffd600, emissive: 0x6b4f00 });
@@ -1060,9 +1083,77 @@ function prepareRace() {
   G.R = R;
 }
 
+function fuelCan() {
+  const g = new THREE.Group();
+  vox(g, 0, 0, 0, 1.2, 1.5, 0.8, 0xe53935); vox(g, 0.3, 0.9, 0, 0.4, 0.3, 0.4, 0xfdd835); vox(g, 0, 0.2, 0.42, 0.7, 0.7, 0.05, 0xffffff);
+  g.scale.setScalar(1.2);
+  return g;
+}
+function spawnFuel(R) {                       // bensin di jalan: tepat sebelum bensin habis
+  const need = R.N - R.F;
+  if (need <= 0 || R.F < 1) return;
+  for (let i = 0; i < need; i++) {
+    const s = (R.F + i) * SEG - 45 - R.rng() * 15;
+    const x = R.hard ? (R.rng() * 2 - 1) * 4.2 : LANE_X[Math.floor(R.rng() * 4)];
+    const m = fuelCan(), rc = roadXZ(s, x, _xz);
+    m.position.set(rc.X, 1.4, rc.Z);
+    world.dyn.add(m);
+    R.coinList.push({ m, s, x, got: false, kind: 'fuel' });
+  }
+}
+function rebuildFuel() {
+  const R = G.R;
+  $('#h-fuel').innerHTML = Array.from({ length: R.F }, () => '<div class="fs"><i></i></div>').join('');
+  R.hudRem = -1;
+}
+function updateRain(R, dt) {
+  const p = R.p, on = R.rainFrom >= 0 && p.s >= R.rainFrom && p.s <= R.rainTo;
+  R.rainLvl += ((on ? 1 : 0) - R.rainLvl) * Math.min(1, dt * 0.8);
+  if (on && !R.rainMsg && R.phase === 'go') { R.rainMsg = true; toast('🌧️ Hujan! Jalan licin', 2200); }
+  const l = R.rainLvl;
+  $('#h-rain').hidden = l < 0.25;
+  R.dropMat.opacity = 0.55 * l;
+  const sky = new THREE.Color(world.sky).lerp(new THREE.Color(0x6f7b88), l * 0.6);
+  scene.background.copy(sky); scene.fog.color.copy(sky);
+  hemi.intensity = 1.7 - 0.55 * l;
+  const cx = camera.position.x, cz = camera.position.z;
+  for (const d of R.drops) {
+    d.visible = l > 0.03;
+    if (!d.visible) continue;
+    if (d.position.y <= 0.2 || d.position.z > cz + 3 || d.position.y > 30) d.position.set(cx + (Math.random() - 0.5) * 34, 6 + Math.random() * 10, cz - Math.random() * 50);
+    d.position.y -= 46 * dt;
+  }
+}
+function collide(R, dt) {                     // tabrakan antar mobil
+  if (R.phase !== 'go') return;
+  const all = [R.p, ...R.bots];
+  for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
+    const a = all[i], b = all[j];
+    if (a.finished || b.finished) continue;
+    const ds = a.s - b.s, dx = a.x - b.x;
+    if (Math.abs(ds) > 4.4 || Math.abs(dx) > 2.2) continue;
+    const front = ds >= 0 ? a : b, rear = ds >= 0 ? b : a, key = i * 4 + j;
+    if (R.t > (R.bumpCd[key] || 0)) {
+      R.bumpCd[key] = R.t + 0.7;
+      rear.speed *= 0.8; front.speed *= 1.03;
+      const dir = dx === 0 ? (Math.random() < 0.5 ? 1 : -1) : Math.sign(dx);
+      a.vx += dir * 3.5; b.vx -= dir * 3.5;
+      if (a === R.p || b === R.p) { sfx.bump(); R.shake = 0.5; }
+    }
+    if (R.hard) {
+      const push = (2.2 - Math.abs(dx)) * 0.5 * Math.min(1, dt * 14), dir = dx === 0 ? 1 : Math.sign(dx);
+      a.x = clamp(a.x + dir * push, -ROAD_HALF, ROAD_HALF); b.x = clamp(b.x - dir * push, -ROAD_HALF, ROAD_HALF);
+    }
+    if (Math.abs(dx) < 1.6) {                 // satu jalur: yang belakang tidak bisa menembus
+      rear.s = Math.min(rear.s, front.s - 3.8);
+      rear.speed = Math.min(rear.speed, front.speed * 0.97);
+    }
+  }
+}
 function startRace() {
   const R = G.R;
-  R.F = G.fill;
+  R.F = G.fill; R.F0 = G.fill;
+  spawnFuel(R);
   G.coins -= G.fill * FUEL_PRICE;
   save();
   R.phase = 'count';
@@ -1099,21 +1190,21 @@ function stepBot(R, a, dt) {
   if (!a.finished) {
     a.timer -= dt;
     let inZone;
-    const dr = R.curvy && R.phase !== 'done' ? -curvAt(a.s) * a.speed * DRIFT : 0;
+    const dr = R.curvy && R.phase !== 'done' ? -curvAt(a.s) * a.speed * DRIFT * (1 + 0.6 * R.rainLvl) : 0;
     if (R.hard) {
       if (a.timer <= 0) {
         a.timer = 0.5 + R.rng() * 0.9;
         const nx = nextPad(R, a.s, a.color, 70);
         if (nx && R.rng() < a.skill) a.tx = nx.x; else a.tx = clamp(a.tx + (R.rng() - 0.5) * 7, -4.6, 4.6);
       }
-      a.vx += (clamp((a.tx - a.x) * 3, -AI_STEER, AI_STEER) - dr - a.vx) * Math.min(1, dt * 6);
+      a.vx += (clamp((a.tx - a.x) * 3, -AI_STEER, AI_STEER) - dr - a.vx) * Math.min(1, dt * (6 - 3 * R.rainLvl));
       a.x = clamp(a.x + (a.vx + dr) * dt, -ROAD_HALF, ROAD_HALF);
       if (padUnder(R, a.s, a.x, a.color)) a.boostT = LINGER; else a.boostT = Math.max(0, a.boostT - dt);
       inZone = a.boostT > 0;
     } else {
       const gl = R.perms[segIdx(R, a.s)].indexOf(a.color);
       if (a.timer <= 0) { a.lane = R.rng() < a.skill ? gl : Math.floor(R.rng() * 4); a.timer = 0.5 + R.rng() * 0.9; }
-      a.x += (LANE_X[a.lane] - a.x) * Math.min(1, dt * 6);
+      a.x += (LANE_X[a.lane] - a.x) * Math.min(1, dt * (6 - 3 * R.rainLvl));
       inZone = Math.abs(a.x - LANE_X[gl]) < 1.1;
     }
     a.boost = inZone;
@@ -1143,11 +1234,11 @@ function stepRace(dt) {
   const canSteer = R.phase === 'go' || R.phase === 'tow';
   if (R.hard) {
     const ax = canSteer ? inputAxis() : 0;
-    p.vx += (ax * STEER_SPEED - p.vx) * Math.min(1, dt * 10);
-    const dr = R.curvy && R.phase === 'go' ? -curvAt(p.s) * p.speed * DRIFT : 0;     // tikungan mendorong mobil ke luar
+    p.vx += (ax * STEER_SPEED - p.vx) * Math.min(1, dt * (10 - 6.5 * R.rainLvl));       // licin: setir telat merespons
+    const dr = R.curvy && R.phase === 'go' ? -curvAt(p.s) * p.speed * DRIFT * (1 + 0.6 * R.rainLvl) : 0;     // tikungan mendorong mobil ke luar
     p.x = clamp(p.x + (p.vx + dr) * dt, -ROAD_HALF, ROAD_HALF);
   } else {
-    p.x += (LANE_X[p.lane] - p.x) * Math.min(1, dt * 11);
+    p.x += (LANE_X[p.lane] - p.x) * Math.min(1, dt * (11 - 6.5 * R.rainLvl));
   }
 
   /* --- maju, boost, bensin --- */
@@ -1207,18 +1298,22 @@ function stepRace(dt) {
     if (c.got) continue;
     c.m.rotation.y += dt * 4;
     if (Math.abs(c.s - p.s) < 2 && Math.abs(c.x - p.x) < 1.6 && R.phase !== 'done') {
-      c.got = true; c.m.visible = false; R.got++; sfx.coin();
-      $('#h-coins').textContent = G.coins + R.got;
+      c.got = true; c.m.visible = false;
+      if (c.kind === 'fuel') { R.F += 1; rebuildFuel(); sfx.fuel(); toast('⛽ Dapat bensin!', 1200); }
+      else { R.got++; sfx.coin(); $('#h-coins').textContent = G.coins + R.got; }
     }
   }
 
-  /* --- komputer (2 lawan) --- */
+  /* --- komputer (2 lawan) + tabrakan + hujan --- */
   for (const q of R.bots) stepBot(R, q, dt);
+  collide(R, dt);
+  updateRain(R, dt);
+  R.shake = Math.max(0, R.shake - dt * 2.2);
 
   /* --- efek boost: api, vignette, suara mesin --- */
   const bo = R.phase === 'go' && p.boost;
   if (bo !== R.fxOn) { R.fxOn = bo; boostFx(bo); A.boostTarget = bo ? 1 : 0; }
-  engineUpdate(p.speed, bo, p.speed > 0.8);
+  engineUpdate(p.speed, bo, p.speed > 0.8, R.rainLvl);
   R.fx += dt;
   while (R.fx > 0.03) {
     R.fx -= 0.03;
@@ -1249,7 +1344,7 @@ function updateStreaks(R) {
 function showResult() {
   const R = G.R;
   G.state = 'result';
-  const exact = !R.towed && R.F === R.N;
+  const exact = !R.towed && R.F0 === R.N;
   const bonusPlace = R.towed ? 0 : BONUS_PLACE[R.place - 1];
   const earned = R.got + bonusPlace + (exact ? BONUS_EXACT : 0);
   G.coins += earned;
@@ -1258,7 +1353,7 @@ function showResult() {
   const big = R.towed ? '🚛' : ['🥇', '🥈', '🥉'][R.place - 1];
   $('#res-title').textContent = R.towed ? 'Diderek!' : `Juara ${R.place}!`;
   $('#res-lines').innerHTML = `<div class="rbig${win ? ' win' : ''}">${big}</div><div class="rcoins">+${earned} 🪙</div>` +
-    (R.towed ? '<p class="rnote bad">⛽ Bensin kurang</p>' : exact ? '<p class="rnote good">⭐ Bensin pas!</p>' : R.F > R.N ? '<p class="rnote bad">⛽ Bensin kelebihan</p>' : '');
+    (R.towed ? '<p class="rnote bad">⛽ Bensin kurang</p>' : exact ? '<p class="rnote good">⭐ Bensin pas!</p>' : R.F0 > R.N ? '<p class="rnote bad">⛽ Bensin kelebihan</p>' : '');
   clearOverlays();
   resetInput();
   boostFx(false); A.boostTarget = 0; engineUpdate(0, false, false);
@@ -1272,7 +1367,7 @@ function updatePreview(dt) {
   const ang = G.t * 0.35 + 0.6, r = G.state === 'pit' ? 12 : 11;
   camera.position.set(Math.sin(ang) * r, 3.6, Math.cos(ang) * r);
   camera.lookAt(0, 1.1, -1.5);
-  if (G.state === 'custom') {          // dekat ke pengemudi
+  if (G.state === 'custom' || G.state === 'wardrobe' || G.state === 'hero') {          // dekat ke pengemudi
     const a2 = G.t * 0.5 + 0.5;
     const rr = innerWidth > innerHeight ? 7.5 : 13;
     camera.position.set(LANE_X[1] + Math.sin(a2) * rr, 4.6, Math.cos(a2) * rr);
@@ -1300,7 +1395,7 @@ function updateChase(dt) {
   camera.position.z += (tz - camera.position.z) * Math.min(1, fz);
   const la = roadXZ(p.s + 14, p.x * 0.6, _xz2);
   camera.lookAt(la.X, 1.6, la.Z);
-  camera.rotateZ((Math.random() - 0.5) * 0.014 * A.boostI);      // goyang halus saat boost
+  camera.rotateZ((Math.random() - 0.5) * (0.014 * A.boostI + 0.07 * R.shake));      // goyang: boost & tabrakan
 }
 function syncCars() {
   const R = G.R;
@@ -1327,6 +1422,7 @@ function update(dt) {
     }
     syncCars();
     updateStreaks(R);
+    if (G.state === 'result') updateRain(R, dt);
     if (G.state === 'race') updateChase(dt);
     else {    // orbit pelan di garis finish
       G.t += dt;
@@ -1357,6 +1453,8 @@ function goMenu() {
 function setupPreview() { buildWorld(G.trackIdx, previewLayout(), G.diff); mountPreview(); }
 function goDiff() { G.state = 'pick'; clearOverlays(); setMusic('menu'); renderMenu(); showScreen('diff'); }
 function goTrack() { G.state = 'pick'; renderMenu(); showScreen('track'); }
+function goHero() { G.state = 'hero'; setMusic('menu'); setupPreview(); renderMenu(); renderCustom(); showScreen('hero'); }
+function goWardrobe() { G.state = 'wardrobe'; setMusic('menu'); G.buying = -1; setupPreview(); renderCustom(); showScreen('wardrobe'); }
 function goCustom() {
   G.state = 'custom'; G.buying = -1;
   setMusic('menu');
@@ -1376,10 +1474,10 @@ $('#menu-cars').addEventListener('click', (e) => {
   if (t.dataset.i === 'k') { sfx.tick(); goCustom(); return; }
   const i = +t.dataset.i;
   if (G.owned[i]) { G.carIdx = i; G.buying = -1; save(); sfx.tick(); setupPreview(); }
-  else if (G.buying !== i) { G.buying = i; sfx.tick(); }                     // ketuk pertama: tanya dulu
+  else if (G.buying !== i) { G.buying = i; sfx.tick(); mountPreview(); }      // ketuk pertama: pratinjau + tanya dulu
   else if (G.coins >= CAR_PRICE[i]) {                                          // ketuk kedua: beli
     G.coins -= CAR_PRICE[i]; G.owned[i] = true; G.carIdx = i; G.buying = -1; save(); sfx.win(); toast('Mobil baru! 🎉', 1400); setupPreview();
-  } else { G.buying = -1; sfx.lose(); toast('Uangmu kurang! 🪙', 1000); }
+  } else { G.buying = -1; sfx.lose(); toast('Uangmu kurang! 🪙', 1000); setupPreview(); }
   renderMenu(); renderCustom();
 });
 $('#menu-tracks').addEventListener('click', (e) => {
@@ -1409,7 +1507,10 @@ onCu('#cu-shirt', (v) => { G.char.shirt = clamp(+v, 0, 5); });
 onCu('#cu-col', (v) => { G.cust[G.carIdx].col = clamp(+v, 0, 3); setupPreview(); });
 onCu('#cu-acc', (v) => { G.cust[G.carIdx].acc = +v ? 1 : 0; });
 onCu('#cu-lv', (v) => { G.cust[G.carIdx].lv = clamp(+v, 0, 3); });
-$('#btn-cu-ok').addEventListener('click', () => { G.charSet = true; save(); sfx.beep(); goMenu(); });
+$('#btn-cu-ok').addEventListener('click', () => { sfx.beep(); goMenu(); });
+$('#btn-wd-ok').addEventListener('click', () => { sfx.beep(); goMenu(); });
+$('#btn-hero-ok').addEventListener('click', () => { G.charSet = true; save(); sfx.beep(); goMenu(); });
+$('#btn-wardrobe-open').addEventListener('click', () => { sfx.tick(); goWardrobe(); });
 $('#pit-tank').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
   const n = +t.dataset.i + 1;
@@ -1436,13 +1537,13 @@ $('#set-music').addEventListener('click', () => { G.musicOff = !G.musicOff; appl
 $('#set-sound').addEventListener('click', () => { G.mute = !G.mute; applyAudioPrefs(); syncSys(); syncSet(); save(); });
 $('#set-delchar').addEventListener('click', () => {
   if (confirmKey !== 'char') { confirmKey = 'char'; syncSet(); return; }
-  G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false; confirmKey = ''; save(); sfx.lose(); goCustom();
+  G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false; confirmKey = ''; save(); sfx.lose(); goHero();
 });
 $('#set-reset').addEventListener('click', () => {
   if (confirmKey !== 'all') { confirmKey = 'all'; syncSet(); return; }
   G.coins = START_COINS; G.owned = [true, false, false, false]; G.carIdx = 0;
   G.cust = [0, 1, 2, 3].map((c) => ({ col: c, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false;
-  confirmKey = ''; save(); sfx.lose(); goCustom();
+  confirmKey = ''; save(); sfx.lose(); goHero();
 });
 $('#btn-music').addEventListener('click', () => { G.musicOff = !G.musicOff; applyAudioPrefs(); syncSys(); save(); });
 
@@ -1496,7 +1597,7 @@ syncSys();
   $('#ver').textContent = 'Gembalap v0.3 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
 }
 resize();
-if (G.charSet) goMenu(); else goCustom();
+if (G.charSet) goMenu(); else goHero();
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1507,4 +1608,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // untuk pengujian / debug
-window.__balap = { ROAD, curvAt, roadXZ, goCustom, G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };
+window.__balap = { collide, ROAD, curvAt, roadXZ, goCustom, G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };
