@@ -10,7 +10,10 @@ Game balapan bergaya voxel untuk dimainkan bareng anak. Isi bensin sesuai jumlah
 | Mode | Cara |
 |---|---|
 | Mudah | 4 jalur berwarna, pindah jalur ◀ ▶. Warna jalur diacak tiap bendera. |
-| Sulit | Tanpa jalur. Setir bebas kiri-kanan; hanya beberapa petak berwarna di aspal. |
+| Normal | Tanpa jalur. Setir bebas kiri-kanan; hanya beberapa petak berwarna di aspal. |
+| Sulit | Seperti Normal, tapi jalannya berbelok dan tikungan mendorong mobil ke luar. |
+
+Lawan: 2 mobil komputer. Mulai dengan 1 mobil; mobil lain dibeli pakai koin. Kustom: pembalap (cowok/cewek, topi, baju) dan mobil (warna, aksesori, livery). Petunjuk jarak: Bendera / Jari / Dadu.
 
 Kontrol: tombol ◀ ▶ di layar, panah / A D di keyboard, atau geser di layar.
 

@@ -28,10 +28,10 @@ button{font-family:inherit}
 .xbtn{color:#fff;font:800 22px/1 var(--f-display)}
 .ver{margin:12px 0 0;font:700 11px var(--f-body);opacity:.55}
 #menu-note{margin:8px 0 0;font:800 14px/1.3 var(--f-body);color:var(--berry);min-height:1em}
-#scr-menu .cols>div{min-width:0}
+#scr-menu .cols>div,#scr-custom .cols>div{min-width:0}
 @media (min-width:760px) and (min-height:521px){
-  #scr-menu .panel{--pw:660px}
-  #scr-menu .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;align-items:start}
+  #scr-menu .panel,#scr-custom .panel{--pw:660px}
+  #scr-menu .cols,#scr-custom .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;align-items:start}
 }
 .ov.side .panel{max-width:calc(100% - 2px)}
 
@@ -65,10 +65,10 @@ button{font-family:inherit}
 .fs i{position:absolute;left:0;right:0;bottom:0;height:100%;background:linear-gradient(#ffe892,#ffc83a 55%,#f0a820)}
 #h-hint{font-size:13px;padding:5px 10px;white-space:normal;text-align:center}
 #h-sw{width:18px;height:18px;border-radius:5px;border:3px solid var(--ink);flex:none}
-.ctl{pointer-events:auto;position:absolute;bottom:calc(var(--mg) + var(--sb));width:var(--btn);height:var(--btn);padding:0;border-radius:24px;background:rgba(255,250,240,.62);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);color:var(--ink);font:800 calc(var(--btn)*.5)/1 var(--f-display);display:grid;place-items:center;touch-action:none;cursor:pointer}
+.ctl{pointer-events:auto;position:absolute;bottom:calc(var(--sb) + 24vh);width:var(--btn);height:var(--btn);padding:0;border-radius:24px;background:rgba(255,250,240,.62);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);color:var(--ink);font:800 calc(var(--btn)*.5)/1 var(--f-display);display:grid;place-items:center;touch-action:none;cursor:pointer}
 .ctl:active,.ctl.hold{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);background:var(--sun)}
-#btn-left{left:calc(var(--mg) + var(--sl))}
-#btn-right{right:calc(var(--mg) + var(--sr))}
+#btn-left{left:calc(max(var(--mg),3.5vw) + var(--sl))}
+#btn-right{right:calc(max(var(--mg),3.5vw) + var(--sr))}
 #btn-quit{pointer-events:auto;position:absolute;bottom:calc(var(--mg) + var(--sb));left:50%;transform:translateX(-50%);min-height:42px;font-size:15px;padding:8px 14px}
 #btn-quit:active{transform:translateX(-50%) translateY(3px)}
 #sys{position:absolute;z-index:50;top:calc(var(--mg) + var(--st));right:calc(var(--mg) + var(--sr));display:flex;gap:8px}
@@ -95,6 +95,41 @@ button{font-family:inherit}
 #boosttxt.go{animation:bst .85s ease-out}
 @keyframes bst{0%{opacity:0;transform:translate(-50%,-30%) scale(.5) skewX(-10deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) skewX(-10deg)}60%{opacity:1;transform:translate(-50%,-55%) scale(1) skewX(-10deg)}100%{opacity:0;transform:translate(-50%,-90%) scale(1) skewX(-10deg)}}
 @media (prefers-reduced-motion:reduce){#fx .lines,#fx .vig{animation:none}}
+
+/* ---- kustom, ikon mobil, petunjuk ---- */
+.ccard.car{flex:1 1 40px;padding:6px 2px;min-height:54px}
+#menu-cars{gap:6px}
+.ccard.car .ci{display:block;width:100%;max-width:70px;margin:0 auto}
+#cu-acc .ccard.car,#cu-lv .ccard.car{flex:1 1 60px}#cu-acc .ci,#cu-lv .ci{max-width:84px}
+.ccard.car small{margin-top:2px}
+.ccard.big{flex:1 1 52px}.ccard.big .e{font-size:30px}
+.ccard.lock .ci{filter:grayscale(1) brightness(1.05);opacity:.6}
+.ccard.lock .lk{position:absolute;top:4px;right:6px;font-size:18px}
+.ccard.lock.buy{background:var(--sun);box-shadow:0 4px 0 var(--ink)}
+.ccard.lock.buy .ci{filter:none;opacity:1}
+.sw{display:flex;gap:10px;flex-wrap:wrap}
+.swb{width:48px;height:48px;border-radius:14px;border:3px solid var(--ink);cursor:pointer;padding:0;touch-action:manipulation}
+.swb.sel{box-shadow:0 0 0 4px var(--sun),0 4px 0 4px var(--ink);transform:translateY(-2px)}
+.dice{display:flex;gap:12px;justify-content:center}
+.die{display:inline-grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:2px;width:clamp(44px,9vmin,64px);aspect-ratio:1;padding:6px;background:#fff;border:3px solid var(--ink);border-radius:12px;box-shadow:0 3px 0 var(--ink)}
+.die i{border-radius:50%}.die i.on{background:var(--ink)}
+.rbig{font-size:clamp(64px,16vmin,110px);line-height:1.3;text-align:center;padding-bottom:6px}
+.rbig.win{animation:pop .7s ease-out}
+@keyframes pop{0%{transform:scale(.3) rotate(-15deg)}60%{transform:scale(1.2) rotate(6deg)}100%{transform:scale(1) rotate(0)}}
+.rcoins{font:800 clamp(34px,8vmin,54px)/1.1 var(--f-display);text-align:center;color:var(--dusk)}
+.rnote{text-align:center;margin:8px 0 0;font:800 17px var(--f-body)}
+.rnote.good{color:#1f8a4c}.rnote.bad{color:#c2255c}
+#pit-cost{min-height:1.6em;font-size:22px;word-break:break-all}
+@media (max-width:760px){
+  .hrow{flex-wrap:wrap;align-items:center;gap:6px 8px}
+  .hstack,.hc{display:contents}
+  #h-pos{order:1}.hrow>.chip:last-child{order:2}
+  #h-bar{order:3;flex:0 0 100%;max-width:none;margin-top:20px}
+  .hstack>.chip:nth-child(2){order:4}
+  #h-hint{order:5;flex:1;min-width:0}
+}
+@media (max-width:760px) and (orientation:portrait){#toast{top:36%}#count{top:30%}#boosttxt{top:44%}}
+.fs{width:12px;height:24px}
 
 /* ---- hasil ---- */
 #res-lines p{margin:6px 0;font:800 15px/1.35 var(--f-body)}
@@ -124,7 +159,7 @@ button{font-family:inherit}
         <span class="chip">⛽ <span id="h-fuel"></span></span>
       </div>
       <div class="hc">
-        <div id="h-bar"><div id="h-ticks"></div><div class="mk" id="h-am"></div><div class="mk" id="h-pm"></div></div>
+        <div id="h-bar"><div id="h-ticks"></div><div class="mk" id="h-am"></div><div class="mk" id="h-bm"></div><div class="mk" id="h-pm"></div></div>
         <div class="chip" id="h-hint"><i id="h-sw"></i><span id="h-hintx"></span></div>
       </div>
       <span class="chip">🪙 <b id="h-coins">0</b></span>
@@ -144,12 +179,12 @@ button{font-family:inherit}
     <div class="pbody">
       <div class="cols">
         <div>
-          <h3>Pilih mobil</h3><div class="chips" id="menu-cars"></div>
+          <h3>Mobilku</h3><div class="chips" id="menu-cars"></div>
           <h3>Pilih lintasan</h3><div class="chips" id="menu-tracks"></div>
         </div>
         <div>
-          <h3>Kesulitan</h3><div class="chips" id="menu-diffs"></div>
-          <h3>Bantuan bensin</h3><div class="chips" id="menu-levels"></div>
+          <h3>Tingkat</h3><div class="chips" id="menu-diffs"></div>
+          <h3>Petunjuk jarak</h3><div class="chips" id="menu-levels"></div>
           <h3>Mode</h3>
           <div class="chips"><button class="ccard sel"><span class="e">🤖</span>Vs Komputer</button><button class="ccard" disabled><span class="e">🌐</span>Multiplayer<small>segera hadir</small></button></div>
           <p id="menu-note"></p>
@@ -160,15 +195,34 @@ button{font-family:inherit}
     <div class="pfoot"><button class="pill go" id="btn-play">Main! 🏁</button></div>
   </div></div>
 
+  <!-- Kustom: pembalap + mobil -->
+  <div class="ov side" id="scr-custom"><div class="panel">
+    <div class="phead"><h2>🎨 Kustom</h2></div>
+    <div class="pbody">
+      <div class="cols">
+        <div>
+          <h3>Pembalap</h3><div class="chips" id="cu-g"></div>
+          <h3>Topi</h3><div class="chips" id="cu-hat"></div>
+          <h3>Baju</h3><div class="chips sw" id="cu-shirt"></div>
+        </div>
+        <div>
+          <h3>Warna mobil</h3><div class="chips sw" id="cu-col"></div>
+          <h3>Aksesori</h3><div class="chips" id="cu-acc"></div>
+          <h3>Livery</h3><div class="chips" id="cu-lv"></div>
+        </div>
+      </div>
+    </div>
+    <div class="pfoot"><button class="pill go" id="btn-cu-ok">Siap! ✓</button></div>
+  </div></div>
+
   <!-- Pom bensin: dialog tengah, bottom sheet di HP portrait -->
   <div class="ov dlg" id="scr-pit"><div class="panel md">
     <div class="phead"><h2>⛽ Pom Bensin</h2><div class="acts"><button class="xbtn" data-for="btn-back" aria-label="Kembali">✕</button></div></div>
     <div class="pbody">
       <div id="pit-info"></div>
       <div id="pit-tank"></div>
-      <div class="pm"><button class="pill" id="btn-minus" aria-label="Kurangi">−</button><div id="pit-count">0</div><button class="pill" id="btn-plus" aria-label="Tambah">+</button></div>
+      <div class="pm"><button class="pill" id="btn-minus" aria-label="Kurangi">−</button><div id="pit-count">⛽</div><button class="pill" id="btn-plus" aria-label="Tambah">+</button></div>
       <p class="sum" id="pit-cost"></p>
-      <p class="sum wallet" id="pit-wallet"></p>
     </div>
     <div class="pfoot"><div class="fg"><button class="pill" id="btn-back">← Garasi</button><button class="pill" id="btn-say" aria-label="Dengarkan">🔊</button></div><button class="pill go" id="btn-pay">Bayar &amp; Jalan! 🏁</button></div>
   </div></div>

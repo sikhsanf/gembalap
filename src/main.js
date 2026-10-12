@@ -4,10 +4,12 @@ import * as THREE from 'three';
 const LANE_X = [-4.5, -1.5, 1.5, 4.5];
 const SEG = 100;                 // panjang 1 bendera (= 1 kotak bensin)
 const BASE = 20, BOOST = 1.45, TOW_SPEED = 17;
-const AI_BASE = 19.5, AI_SKILL = 0.55;      // makin kecil skill = AI makin sering salah jalur
+const AI_BASE = 20.4, AI_SKILL = 0.55;      // makin kecil skill = AI makin sering salah jalur
 const FUEL_PRICE = 2, TANK_MAX = 10, START_COINS = 20, MIN_COINS = 10;
 const ROAD_HALF = 5.6, STEER_SPEED = 9, AI_STEER = 6.5, PAD_W = 3.6, PAD_LEN = 24, LINGER = 0.7;
-const BONUS_1ST = 10, BONUS_2ND = 4, BONUS_EXACT = 5;
+const BONUS_PLACE = [10, 4, 1], BONUS_EXACT = 5;
+const DRIFT = 18;                // dorongan ke luar saat tikungan (mode Sulit)
+const CAR_PRICE = [0, 30, 40, 50];
 
 const COLORS = [
   { name: 'Merah',  hex: 0xe53935, css: '#e53935' },
@@ -22,6 +24,9 @@ const CARS = [
   { short: 'Taksi', name: 'Taksi',        emoji: '🚕' },
   { short: 'Jip', name: 'Jip Hijau',    emoji: '🚙' },
 ];
+const SHIRTS = [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xff6fa8, 0x8e44ff];
+const HATS = ['🚫', '🧢', '⛑️', '👑', '🤠'];
+const ACC_ICON = ['🏁', '🚨', '🪧', '💡'];
 const TRACKS = [
   { name: 'Desa',   emoji: '🌾', len: 'Pendek', flags: 4, sky: 0x9ad8ff, ground: 0x6dbf4b, theme: 'desa' },
   { name: 'Pantai', emoji: '🏖️', len: 'Sedang', flags: 6, sky: 0x8fe0ff, ground: 0xf0d9a0, theme: 'pantai' },
@@ -51,22 +56,28 @@ function shade(hex, f) { const c = new THREE.Color(hex); c.multiplyScalar(f); re
 
 /* ======================= STATE & SAVE ======================= */
 const SAVE_KEY = 'balap-voxel-v1';
-const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', state: 'menu', fill: 0, R: null, t: 0 };
+const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, shirt: 1 }, charSet: false, owned: [true, false, false, false], buying: -1,
+  cust: [{ col: 0, acc: 0, lv: 0 }, { col: 1, acc: 0, lv: 0 }, { col: 2, acc: 0, lv: 0 }, { col: 3, acc: 0, lv: 0 }], state: 'menu', fill: 0, R: null, t: 0 };
 function loadSave() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
     if (typeof j.coins === 'number') G.coins = j.coins;
     if (j.carIdx >= 0 && j.carIdx < CARS.length) G.carIdx = j.carIdx;
     if (j.trackIdx >= 0 && j.trackIdx < TRACKS.length) G.trackIdx = j.trackIdx;
-    if (j.level === 1 || j.level === 2) G.level = j.level;
+    if (j.level >= 1 && j.level <= 3) G.level = j.level;
     if (typeof j.mute === 'boolean') G.mute = j.mute;
     if (typeof j.musicOff === 'boolean') G.musicOff = j.musicOff;
-    if (j.diff === 'easy' || j.diff === 'hard') G.diff = j.diff;
+    if (j.diff === 'easy' || j.diff === 'hard' || j.diff === 'curvy') G.diff = j.diff;
+    if (j.char) G.char = { g: j.char.g === 'girl' ? 'girl' : 'boy', hat: clamp(j.char.hat | 0, 0, 4), shirt: clamp(j.char.shirt | 0, 0, 5) };
+    if (j.charSet === true) G.charSet = true;
+    if (Array.isArray(j.owned) && j.owned.length === 4) G.owned = j.owned.map((v, i) => i === 0 || v === true);
+    if (Array.isArray(j.cust) && j.cust.length === 4) G.cust = j.cust.map((c, i) => ({ col: clamp(c.col | 0, 0, 3), acc: c.acc ? 1 : 0, lv: clamp(c.lv | 0, 0, 3) }));
+    if (!G.owned[G.carIdx]) G.carIdx = 0;
   } catch (e) { /* abaikan */ }
 }
 function save() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ coins: G.coins, carIdx: G.carIdx, trackIdx: G.trackIdx, level: G.level, mute: G.mute, musicOff: G.musicOff, diff: G.diff }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ coins: G.coins, carIdx: G.carIdx, trackIdx: G.trackIdx, level: G.level, mute: G.mute, musicOff: G.musicOff, diff: G.diff, char: G.char, charSet: G.charSet, owned: G.owned, cust: G.cust }));
   } catch (e) { /* abaikan */ }
 }
 
@@ -74,15 +85,18 @@ function save() {
 const A = { ctx: null, mus: null, sfx: null, noise: null, eng: null, wind: null,
   want: null, mode: null, step: 0, nextT: 0, timer: 0, boostI: 0, boostTarget: 0, offline: false };
 const MN = (m) => 440 * Math.pow(2, (m - 69) / 12);
-// 8 bar: C Am F G | Em Am F G  -> [nada dasar relatif C3, isi akor]
-const PROG = [[0, [0, 4, 7]], [-3, [0, 3, 7]], [-7, [0, 4, 7]], [-5, [0, 4, 7]],
-              [4, [0, 3, 7]], [-3, [0, 3, 7]], [-7, [0, 4, 7]], [-5, [0, 4, 7]]];
-// melodi lead (MIDI) saat boost, 8 nada per bar
-const LEAD = [[76, 79, 84, 79, 76, 74, 72, 74], [81, 79, 76, 79, 81, 84, 81, 79],
-              [81, 79, 76, 74, 72, 74, 76, 79], [79, 76, 74, 76, 79, 81, 79, 74],
-              [83, 79, 76, 79, 83, 79, 76, 71], [81, 84, 81, 79, 76, 79, 81, 76],
-              [84, 81, 79, 76, 74, 76, 79, 81], [79, 83, 79, 76, 74, 76, 79, 83]];
-const BPM = { menu: 96, race: 142 };
+// 8 bar. Balapan: Am F C G | Am F G E  -> [nada dasar (MIDI C3=48 + off), isi akor]
+const MIN = [0, 3, 7], MAJ = [0, 4, 7];
+const PROG = [[9, MIN], [5, MAJ], [0, MAJ], [-5, MAJ], [9, MIN], [5, MAJ], [-5, MAJ], [-8, MAJ]];
+// melodi lead (MIDI), 8 nada per bar (tiap 2 step), selalu main saat balapan
+const LEAD = [[81, 84, 88, 84, 81, 84, 88, 93], [77, 81, 84, 81, 77, 81, 84, 89],
+              [79, 84, 88, 84, 79, 84, 88, 91], [79, 83, 86, 83, 79, 83, 86, 91],
+              [81, 84, 88, 84, 81, 84, 88, 93], [77, 81, 84, 81, 77, 81, 84, 89],
+              [79, 83, 86, 83, 79, 86, 83, 79], [80, 83, 88, 83, 80, 83, 88, 92]];
+const BPM = { menu: 118, race: 168, win: 132 };
+// lagu kemenangan: C G Am F, melodi ceria (0 = diam)
+const WIN_PROG = [[0, MAJ], [-5, MAJ], [-3, MIN], [-7, MAJ]];
+const WIN_LEAD = [[84, 0, 84, 88, 91, 0, 88, 84], [83, 0, 83, 86, 91, 0, 86, 83], [84, 0, 81, 84, 88, 0, 84, 81], [81, 0, 84, 88, 93, 0, 91, 88]];
 
 function audioInit(override) {
   if (A.ctx) { if (A.ctx.state === 'suspended' && !A.offline) A.ctx.resume(); return true; }
@@ -106,7 +120,7 @@ function audioInit(override) {
 }
 function applyAudioPrefs() {
   if (!A.ctx) return;
-  A.mus.gain.value = G.musicOff ? 0 : 0.55;
+  A.mus.gain.value = G.musicOff ? 0 : 0.8;
   A.sfx.gain.value = G.mute ? 0 : 1;
 }
 const okSfx = () => A.ctx && !G.mute;
@@ -209,24 +223,52 @@ function scheduleStep(step, t, sd) {
   const [off, tri] = PROG[bar], root = 48 + off;
   if (A.mode === 'race') {
     const boost = A.boostI > 0.5;
-    if (s % 4 === 0) kick(t, 0.55); else if (s === 10) kick(t, 0.35);
+    // drum: kick tiap ketukan, snare 2 & 4, hat terbuka di off-beat, hat 16 saat boost
+    if (s % 4 === 0) kick(t, 0.7);
     if (s === 4 || s === 12) snare(t);
-    if (s % 2 === 0) hat(t, false, 0.07); else if (boost) hat(t, false, 0.045);
-    if (s === 14) hat(t, true, 0.06);
-    if (boost && s === 0) noiseHit(t, 0.6, 'highpass', 5000, 0, 0.06, 0.7, A.mus);   // cymbal tiap bar saat boost
+    if (s % 4 === 2) hat(t, true, 0.07); else if (s % 2 === 0) hat(t, false, 0.05);
+    if (s % 2 === 1 && (boost || bar % 4 === 3)) hat(t, false, 0.045);
+    if (s === 0) noiseHit(t, boost ? 0.7 : 0.35, 'highpass', 5000, 0, boost ? 0.07 : 0.04, 0.7, A.mus);   // cymbal tiap bar
+    // bass 16 putus-putus (oktaf naik-turun) khas balapan
+    const bn = MN(root - 12 + (s % 4 === 0 ? 0 : (s % 4 === 2 ? 12 : 0)));
+    if (s % 4 !== 0) {
+      oscHit('sawtooth', bn, 0, t, sd * 0.9, 0.11, A.mus, 0.003);
+      oscHit('square', bn / 2, 0, t, sd * 0.9, 0.06, A.mus, 0.003);
+    } else oscHit('sawtooth', bn, 0, t, sd * 0.9, 0.09, A.mus, 0.003);
+    // arpeggio cepat 16-an
+    const ch = tri[[0, 1, 2, 1, 0, 1, 2, 1][s % 8]] + (s % 8 > 3 ? 12 : 0);
+    oscHit('square', MN(root + 24 + ch), 0, t, sd * 0.8, boost ? 0.05 : 0.032, A.mus, 0.002);
+    // lead: selalu ada, makin tebal saat boost
     if (s % 2 === 0) {
-      const bn = MN(root - 12 + (s % 4 === 2 ? 12 : 0));
-      oscHit('triangle', bn, 0, t, sd * 1.8, 0.2, A.mus, 0.004);
-      oscHit('square', bn, 0, t, sd * 1.6, 0.035, A.mus, 0.004);
+      const ln = LEAD[bar][s / 2];
+      oscHit('sawtooth', MN(ln), 0, t, sd * 1.9, boost ? 0.06 : 0.045, A.mus, 0.006);
+      oscHit('square', MN(ln - 12), 0, t, sd * 1.9, 0.025, A.mus, 0.006);
+      if (boost) oscHit('square', MN(ln + 12), 0, t, sd * 1.4, 0.03, A.mus, 0.004);
     }
-    const ch = [tri[0], tri[1], tri[2], tri[0] + 12][[0, 1, 2, 3, 2, 1, 2, 1][s % 8]];
-    oscHit('square', MN(root + 12 + ch + (boost ? 12 : 0)), 0, t, sd * 0.85, boost ? 0.07 : 0.04, A.mus, 0.003);
-    if (boost && s % 2 === 0) oscHit('sawtooth', MN(LEAD[bar][s / 2]), 0, t, sd * 1.8, 0.05, A.mus, 0.01);
+    if (boost && s === 15) noiseHit(t, sd * 1.5, 'bandpass', 800, 6000, 0.08, 1, A.mus);   // riser tiap bar
+  } else if (A.mode === 'win') {
+    const W = WIN_PROG[bar % 4], wr = 48 + W[0];
+    if (s % 4 === 0) kick(t, 0.55);
+    if (s === 4 || s === 12) snare(t);
+    if (s % 4 === 2) hat(t, true, 0.06); else if (s % 2 === 0) hat(t, false, 0.04);
+    if (s % 2 === 0) oscHit('sawtooth', MN(wr - 12 + (s % 4 === 2 ? 12 : 0)), 0, t, sd * 1.7, 0.1, A.mus, 0.004);
+    if (s === 0) { W[1].forEach((n) => oscHit('square', MN(wr + 12 + n), 0, t, sd * 6, 0.03, A.mus, 0.01)); noiseHit(t, 0.8, 'highpass', 5000, 0, 0.05, 0.7, A.mus); }
+    const wl = WIN_LEAD[bar % 4][s / 2];
+    if (s % 2 === 0 && wl) {
+      oscHit('square', MN(wl), 0, t, sd * 1.8, 0.06, A.mus, 0.004);
+      oscHit('triangle', MN(wl - 12), 0, t, sd * 1.8, 0.07, A.mus, 0.004);
+    }
+    oscHit('triangle', MN(wr + 24 + W[1][(s >> 1) % 3]), 0, t, sd * 0.9, 0.03, A.mus, 0.002);
   } else {
-    if (s === 0) tri.forEach((n) => oscHit('triangle', MN(root + 12 + n), 0, t, sd * 15, 0.045, A.mus, 0.25));
-    if (s % 8 === 0) oscHit('sine', MN(root - 12), 0, t, sd * 7, 0.2, A.mus, 0.02);
-    if (s % 2 === 0) oscHit('triangle', MN(root + 24 + tri[(s / 2) % 3]), 0, t, sd * 3, 0.05, A.mus, 0.005);
-    if (s % 4 === 2) hat(t, false, 0.03);
+    // menu: tetap semangat — kick lembut, bass memantul, arpeggio ceria
+    const M = [[0, MAJ], [-3, MIN], [-7, MAJ], [-5, MAJ], [0, MAJ], [-3, MIN], [-7, MAJ], [-5, MAJ]][bar];
+    const mr = 48 + M[0];
+    if (s % 4 === 0) kick(t, 0.4);
+    if (s === 4 || s === 12) snare(t);
+    if (s % 2 === 0) hat(t, s % 4 === 2, 0.045);
+    if (s % 4 === 0 || s % 8 === 6) oscHit('triangle', MN(mr - 12), 0, t, sd * 2.5, 0.2, A.mus, 0.004);
+    if (s % 2 === 0) oscHit('square', MN(mr + 24 + M[1][(s / 2) % 3]), 0, t, sd * 1.6, 0.035, A.mus, 0.004);
+    if (s === 0) M[1].forEach((n) => oscHit('triangle', MN(mr + 12 + n), 0, t, sd * 14, 0.04, A.mus, 0.1));
   }
 }
 function musicTick() {
@@ -260,6 +302,40 @@ async function audioTest(mode, boostI, secs) {
   return { nan: bad, peak: +pk.toFixed(3), rms: +Math.sqrt(ss / d.length).toFixed(4), secs };
 }
 
+/* ======================= JALAN BERBELOK (mode Sulit) ======================= */
+const ROAD = { on: false, n: 0, cx: null, psi: null, off: 60 };
+const sm01 = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+function headingAt(s, len) {
+  if (s <= 0 || s >= len) return 0;
+  const env = sm01((s - 40) / 70) * (1 - sm01((s - (len - 140)) / 70));
+  return env * (0.34 * Math.sin(s / 58 + 0.4) + 0.16 * Math.sin(s / 27 + 1.3));
+}
+function buildRoad(len, on) {
+  ROAD.on = on;
+  if (!on) return;
+  const n = Math.ceil(len) + 320;
+  ROAD.n = n; ROAD.cx = new Float32Array(n); ROAD.psi = new Float32Array(n);
+  let x = 0;
+  for (let i = 0; i < n; i++) {
+    const p = headingAt(i - ROAD.off, len);
+    ROAD.psi[i] = p; ROAD.cx[i] = x; x += Math.tan(p);
+  }
+}
+function roadXZ(s, x, o) {      // titik di jalan: s = jarak, x = geser kanan(+)/kiri(-)
+  if (!ROAD.on) { o.X = x; o.Z = -s; o.psi = 0; return o; }
+  const f = clamp(s + ROAD.off, 0, ROAD.n - 1.001), i = Math.floor(f), u = f - i;
+  const psi = ROAD.psi[i] + (ROAD.psi[i + 1] - ROAD.psi[i]) * u;
+  const cx = ROAD.cx[i] + (ROAD.cx[i + 1] - ROAD.cx[i]) * u;
+  o.psi = psi; o.X = cx + x * Math.cos(psi); o.Z = -s + x * Math.sin(psi);
+  return o;
+}
+function curvAt(s) {
+  if (!ROAD.on) return 0;
+  const i = clamp(Math.floor(s + ROAD.off), 0, ROAD.n - 2);
+  return ROAD.psi[i + 1] - ROAD.psi[i];
+}
+const _xz = { X: 0, Z: 0, psi: 0 }, _xz2 = { X: 0, Z: 0, psi: 0 };
+
 /* ======================= THREE: DASAR ======================= */
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -288,13 +364,19 @@ function vox(parent, x, y, z, sx, sy, sz, hex) {
 /* satu InstancedMesh untuk semua kubus statis = 1 draw call */
 class Batch {
   constructor() { this.items = []; }
-  box(x, y, z, sx, sy, sz, color) { this.items.push([x, y, z, sx, sy, sz, color]); }
+  box(x, y, z, sx, sy, sz, color, yaw = 0) {
+    if (ROAD.on) {                       // ikuti lengkung jalan
+      const r = roadXZ(-z, x, _xz);
+      this.items.push([r.X, y, r.Z, sx, sy, sz, color, yaw - r.psi]);
+    } else this.items.push([x, y, z, sx, sy, sz, color, yaw]);
+  }
+  raw(x, y, z, sx, sy, sz, color) { this.items.push([x, y, z, sx, sy, sz, color, 0]); }
   build() {
     const mt = new THREE.MeshLambertMaterial({ color: 0xffffff });
     const m = new THREE.InstancedMesh(boxGeo, mt, Math.max(1, this.items.length));
     const d = new THREE.Object3D(), c = new THREE.Color();
     this.items.forEach((it, i) => {
-      d.position.set(it[0], it[1], it[2]); d.scale.set(it[3], it[4], it[5]); d.updateMatrix();
+      d.position.set(it[0], it[1], it[2]); d.scale.set(it[3], it[4], it[5]); d.rotation.y = it[7]; d.updateMatrix();
       m.setMatrixAt(i, d.matrix); m.setColorAt(i, c.setHex(it[6]));
     });
     m.count = this.items.length;
@@ -328,9 +410,9 @@ function voxText(b, str, cx, cy, z, cell, color) {
 }
 
 /* ======================= MODEL MOBIL (VOXEL) ======================= */
-function buildCar(type) {
+function buildCar(type, ci, acc, lv) {
   const g = new THREE.Group();
-  const hex = COLORS[type].hex, dk = shade(hex, 0.7);
+  const hex = COLORS[ci].hex, dk = shade(hex, 0.7);
   const dark = 0x263238, glass = 0x9fd8f5, white = 0xffffff, headl = 0xfff59d, tail = 0xff1744;
   const lights = (y, z) => {
     [-0.7, 0.7].forEach((x) => { vox(g, x, y, z, 0.45, 0.3, 0.1, headl); vox(g, x, y, -z, 0.45, 0.3, 0.1, tail); });
@@ -341,8 +423,10 @@ function buildCar(type) {
     vox(g, 0, 1.4, -0.35, 1.7, 0.5, 1.9, glass);
     vox(g, 0, 1.72, -0.35, 1.7, 0.12, 1.5, hex);
     vox(g, 0, 1.23, 1.35, 0.5, 0.06, 1.6, white);
-    [-0.8, 0.8].forEach((x) => vox(g, x, 1.4, -1.95, 0.15, 0.6, 0.15, dark));
-    vox(g, 0, 1.75, -1.95, 2.3, 0.15, 0.6, dk);
+    if (acc) {                    // aksesori: spoiler belakang
+      [-0.8, 0.8].forEach((x) => vox(g, x, 1.4, -1.95, 0.15, 0.6, 0.15, dark));
+      vox(g, 0, 1.75, -1.95, 2.3, 0.15, 0.6, dk);
+    }
     lights(0.95, 2.17);
   } else if (type === 1) {     // polisi biru
     [-1, 1].forEach((sx) => [-1.35, 1.45].forEach((z) => vox(g, sx * 1.15, 0.45, z, 0.55, 0.9, 0.9, dark)));
@@ -350,8 +434,10 @@ function buildCar(type) {
     vox(g, 0, 1.55, -0.2, 1.9, 0.7, 2.2, white);
     vox(g, 0, 1.6, -0.2, 1.95, 0.35, 2.0, glass);
     vox(g, 0, 1.95, -0.2, 1.9, 0.12, 2.2, white);
-    vox(g, -0.45, 2.15, -0.2, 0.7, 0.3, 0.5, 0xff1744);
-    vox(g, 0.45, 2.15, -0.2, 0.7, 0.3, 0.5, 0x2979ff);
+    if (acc) {                    // aksesori: lampu sirine
+      vox(g, -0.45, 2.15, -0.2, 0.7, 0.3, 0.5, 0xff1744);
+      vox(g, 0.45, 2.15, -0.2, 0.7, 0.3, 0.5, 0x2979ff);
+    }
     vox(g, 0, 1.0, 0, 2.24, 0.14, 1.6, white);
     lights(1.0, 2.17);
   } else if (type === 2) {     // taksi kuning
@@ -360,8 +446,10 @@ function buildCar(type) {
     vox(g, 0, 1.55, -0.2, 1.9, 0.7, 2.4, hex);
     vox(g, 0, 1.6, -0.2, 1.95, 0.35, 2.2, glass);
     vox(g, 0, 2.0, -0.2, 1.9, 0.12, 2.4, hex);
-    vox(g, 0, 2.25, -0.2, 0.9, 0.35, 0.5, white);
-    vox(g, 0, 2.25, -0.2, 0.92, 0.1, 0.52, dark);
+    if (acc) {                    // aksesori: papan taksi
+      vox(g, 0, 2.25, -0.2, 0.9, 0.35, 0.5, white);
+      vox(g, 0, 2.25, -0.2, 0.92, 0.1, 0.52, dark);
+    }
     vox(g, 0, 0.95, 0, 2.24, 0.12, 3.6, dark);
     lights(1.0, 2.17);
   } else {                     // jip hijau
@@ -373,9 +461,64 @@ function buildCar(type) {
     vox(g, 0, 2.45, -0.5, 2.1, 0.12, 2.1, dk);
     vox(g, 0, 1.3, -2.1, 1.0, 1.0, 0.4, dark);
     [-1, 1].forEach((sx) => vox(g, sx * 0.9, 2.55, 0.45, 0.1, 0.5, 0.1, dark));
+    if (acc) {                    // aksesori: lampu atap
+      vox(g, 0, 2.58, 0.55, 2.0, 0.14, 0.4, dark);
+      [-0.7, 0, 0.7].forEach((x) => vox(g, x, 2.78, 0.55, 0.5, 0.3, 0.4, 0xfff176));
+    }
     lights(1.15, 2.03);
   }
+  if (lv) addLivery(g, type, lv);
   return g;
+}
+// livery: stripe / kotak-kotak / api
+const LVD = [{ w: 2.1, top: 1.2, rt: 1.78, rz: -0.35, rl: 1.5 }, { w: 2.2, top: 1.3, rt: 2.01, rz: -0.2, rl: 2.2 },
+             { w: 2.2, top: 1.3, rt: 2.07, rz: -0.2, rl: 2.4 }, { w: 2.3, top: 1.6, rt: 2.51, rz: -0.5, rl: 2.1 }];
+function addLivery(g, type, lv) {
+  const d = LVD[type];
+  if (lv === 1) {
+    [-0.3, 0.3].forEach((x) => { vox(g, x, d.top + 0.02, 0, 0.26, 0.05, 4.2, 0xffffff); vox(g, x, d.rt + 0.02, d.rz, 0.26, 0.05, d.rl, 0xffffff); });
+  } else if (lv === 2) {
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) {
+      const col = (r + c) % 2 ? 0x111111 : 0xffffff;
+      vox(g, -0.7 + c * 0.35, d.top + 0.02, -1.95 + r * 0.38, 0.35, 0.05, 0.38, col);   // bagasi
+      vox(g, -0.7 + c * 0.35, d.top + 0.02, 1.95 - r * 0.38, 0.35, 0.05, 0.38, col);    // kap mesin
+    }
+  } else if (lv === 3) {
+    [-1, 1].forEach((sx) => {
+      for (let i = 0; i < 5; i++) {
+        const h = 0.62 - i * 0.1;
+        vox(g, sx * (d.w / 2 + 0.02), d.top - 0.35 - (0.62 - h) * 0.2, 1.8 - i * 0.45, 0.05, h, 0.45, 0xff9800);
+        vox(g, sx * (d.w / 2 + 0.04), d.top - 0.4 - (0.62 - h) * 0.2, 1.8 - i * 0.45, 0.05, h * 0.5, 0.35, 0xffeb3b);
+      }
+    });
+  }
+}
+// pengemudi: badan, kepala, rambut, topi
+const SKIN = 0xf2c29b;
+const ROOF = [[1.78, -0.35], [2.01, 0.45], [2.07, 0.45], [2.51, -0.5]];
+function buildDriver(g, ch, model) {
+  const d = new THREE.Group();
+  d.position.set(0, ROOF[model][0] - 0.15, ROOF[model][1]);
+  const shirt = SHIRTS[ch.shirt], girl = ch.g === 'girl', hair = girl ? 0x5d3a1a : 0x2b1b12;
+  vox(d, 0, 0.1, 0, 1.15, 0.9, 0.7, shirt);
+  [-1, 1].forEach((sx) => vox(d, sx * 0.68, 0.15, 0.05, 0.28, 0.7, 0.4, shirt));
+  vox(d, 0, 0.9, 0, 0.8, 0.8, 0.8, SKIN);
+  [-0.2, 0.2].forEach((x) => vox(d, x, 0.95, 0.41, 0.14, 0.14, 0.05, 0x222222));
+  vox(d, 0, 0.72, 0.41, 0.3, 0.07, 0.05, 0xd9534f);
+  if (ch.hat !== 2) {
+    vox(d, 0, 1.34, -0.02, 0.86, 0.18, 0.86, hair);
+    vox(d, 0, 1.0, -0.4, 0.86, 0.7, 0.14, hair);
+    if (girl) {
+      vox(d, 0, 0.5, -0.43, 0.86, 0.6, 0.14, hair);
+      [-1, 1].forEach((sx) => vox(d, sx * 0.46, 1.1, 0.0, 0.14, 0.5, 0.5, hair));
+      if (ch.hat === 0) [-1, 1].forEach((sx) => vox(d, sx * 0.44, 1.38, 0.1, 0.2, 0.22, 0.22, 0xff4d8d));
+    } else vox(d, 0, 1.25, 0.38, 0.86, 0.16, 0.1, hair);
+  }
+  if (ch.hat === 1) { vox(d, 0, 1.5, 0, 0.94, 0.28, 0.94, 0xff7043); vox(d, 0, 1.4, 0.55, 0.8, 0.08, 0.42, 0xd84315); }
+  else if (ch.hat === 2) { vox(d, 0, 1.2, 0, 0.98, 0.62, 0.98, 0xffffff); vox(d, 0, 1.52, 0, 0.2, 0.05, 1.0, 0xe53935); vox(d, 0, 1.0, 0.5, 0.82, 0.16, 0.06, 0x263238); }
+  else if (ch.hat === 3) { vox(d, 0, 1.52, 0, 0.88, 0.24, 0.88, 0xffd600); [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => vox(d, a * 0.33, 1.74, b * 0.33, 0.2, 0.24, 0.2, 0xffd600)); vox(d, 0, 1.52, 0.45, 0.2, 0.14, 0.05, 0xe53935); }
+  else if (ch.hat === 4) { vox(d, 0, 1.45, 0, 1.6, 0.1, 1.6, 0x8d5524); vox(d, 0, 1.72, 0, 0.82, 0.46, 0.82, 0x8d5524); vox(d, 0, 1.55, 0, 0.86, 0.1, 0.86, 0x5d3a1a); }
+  g.add(d);
 }
 function buildTruck() {
   const g = new THREE.Group();
@@ -391,9 +534,10 @@ function buildTruck() {
   vox(g, 0, 1.1, 2.4, 2.3, 0.4, 0.2, white);
   return g;
 }
-function makeCarObject(idx) {
+function makeCarObject(sp) {
   const outer = new THREE.Group();
-  const inner = buildCar(idx);
+  const inner = buildCar(sp.m, sp.c, sp.acc, sp.lv);
+  if (sp.drv) buildDriver(inner, sp.drv, sp.m);
   inner.rotation.y = Math.PI;       // model dibangun menghadap +z, game maju ke -z
   outer.add(inner);
   const shadow = new THREE.Mesh(boxGeo, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 }));
@@ -401,10 +545,16 @@ function makeCarObject(idx) {
   outer.add(shadow);
   return outer;
 }
-const CAR = { p: null, a: null };
-function mountCar(which, idx) {
+const CAR = { p: null, a: null, b: null };
+const mySpec = () => { const c = G.cust[G.carIdx]; return { m: G.carIdx, c: c.col, acc: c.acc, lv: c.lv, drv: G.char }; };
+function oppSpecs(rng, pc) {          // dua lawan: warna beda dari pemain & dari satu sama lain
+  const cols = shuffle([0, 1, 2, 3].filter((c) => c !== pc), rng);
+  return [0, 1].map((i) => ({ m: Math.floor(rng() * 4), c: cols[i], acc: rng() < 0.5 ? 1 : 0, lv: Math.floor(rng() * 4),
+    drv: { g: rng() < 0.5 ? 'boy' : 'girl', hat: Math.floor(rng() * 5), shirt: Math.floor(rng() * 6) } }));
+}
+function mountCar(which, sp) {
   if (CAR[which]) scene.remove(CAR[which]);
-  CAR[which] = makeCarObject(idx);
+  CAR[which] = makeCarObject(sp);
   scene.add(CAR[which]);
 }
 
@@ -499,9 +649,11 @@ function cloud(b, x, y, z, rng) {
   for (let i = 0; i < n; i++) b.box(x + i * 5 - n * 2.5, y + (rng() - 0.5) * 2, z + (rng() - 0.5) * 4, 7 + rng() * 5, 2.4 + rng() * 1.5, 4 + rng() * 3, 0xffffff);
 }
 
-function buildWorld(ti, layout, hard) {
+function buildWorld(ti, layout, mode) {
   disposeWorld();
+  const hard = mode !== 'easy', curvy = mode === 'curvy';
   const T = TRACKS[ti], N = T.flags, len = N * SEG;
+  buildRoad(len, curvy);
   const group = new THREE.Group();
   const b = new Batch();
   const rng = mulberry32(1337 + ti * 101);
@@ -509,8 +661,9 @@ function buildWorld(ti, layout, hard) {
   scene.fog = new THREE.Fog(T.sky, 80, 270);
 
   const sA = -40, sB = len + 130, L = sB - sA, zc = -(sA + sB) / 2;
-  b.box(0, -0.8, zc, 420, 1, L, T.ground);                 // tanah
-  b.box(0, -0.3, zc, 13.6, 0.4, L, 0x37474f);              // aspal
+  b.raw(0, -0.8, zc, 460, 1, L, T.ground);                 // tanah
+  if (curvy) for (let s = sA; s < sB; s += 4) b.box(0, -0.3, -(s + 2), 13.6, 0.4, 4.8, 0x37474f);   // aspal berlekuk
+  else b.box(0, -0.3, zc, 13.6, 0.4, L, 0x37474f);         // aspal
   [-1, 1].forEach((sd) => {                                // trotoar
     for (let s = sA; s < sB; s += 6) b.box(sd * 7.0, 0.05, -(s + 3), 0.6, 0.3, 6, (Math.floor(s / 6) % 2) ? 0xffffff : 0xe53935);
   });
@@ -523,6 +676,16 @@ function buildWorld(ti, layout, hard) {
     // SULIT: aspal polos, hanya beberapa petak warna
     for (const pd of layout) {
       const zc2 = -(pd.s0 + pd.s1) / 2, col = COLORS[pd.color].hex;
+      if (curvy) {
+        for (let q = 0; q < PAD_LEN; q += 4) {
+          const zq = -(pd.s0 + q + 2);
+          b.box(pd.x, -0.05, zq, PAD_W, 0.1, 4.4, col);
+          b.box(pd.x, 0.01, zq + 1, PAD_W - 0.5, 0.08, 1.0, shade(col, 1.25));
+          b.box(pd.x - PAD_W / 2, 0.0, zq, 0.18, 0.12, 4.4, 0xffffff);
+          b.box(pd.x + PAD_W / 2, 0.0, zq, 0.18, 0.12, 4.4, 0xffffff);
+        }
+        continue;
+      }
       b.box(pd.x, -0.05, zc2, PAD_W, 0.1, PAD_LEN, col);
       for (let q = 2; q < PAD_LEN; q += 4) b.box(pd.x, 0.01, -(pd.s0 + q), PAD_W - 0.5, 0.08, 1.2, shade(col, 1.25));
       b.box(pd.x - PAD_W / 2, 0.0, zc2, 0.18, 0.12, PAD_LEN, 0xffffff);
@@ -575,8 +738,8 @@ function buildWorld(ti, layout, hard) {
       for (let i = 0; i < 5; i++) b.box(x, 4 + i * 8, z, w0 - i * 7, 8, w0 - i * 7, i === 4 ? 0xffffff : (i === 3 ? 0xbdbdbd : 0x6b8e5a));
     } });
   } else if (T.theme === 'pantai') {
-    b.box(-122, -0.3, zc, 200, 0.2, L, 0x29b6f6);          // laut
-    b.box(-22.5, -0.28, zc, 1.4, 0.2, L, 0xffffff);         // buih
+    if (curvy) for (let s = sA; s < sB; s += 6) { b.box(-122, -0.3, -(s + 3), 200, 0.2, 6.8, 0x29b6f6); b.box(-22.5, -0.28, -(s + 3), 1.4, 0.2, 6.8, 0xffffff); }
+    else { b.box(-122, -0.3, zc, 200, 0.2, L, 0x29b6f6); b.box(-22.5, -0.28, zc, 1.4, 0.2, L, 0xffffff); }   // laut + buih
     for (let s = -30; s < end; s += 9 + rng() * 6) {
       const r = rng();
       if (r < 0.5) palm(b, -(12 + rng() * 8), -s, rng); else umbrella(b, -(11 + rng() * 9), -s, rng);
@@ -620,7 +783,7 @@ function resize() {
 addEventListener('resize', resize);
 
 /* ======================= UI (standar EZUI dari Ezventure) ======================= */
-const SCREEN_IDS = { menu: 'scr-menu', pit: 'scr-pit', result: 'scr-result' };
+const SCREEN_IDS = { menu: 'scr-menu', custom: 'scr-custom', pit: 'scr-pit', result: 'scr-result' };
 function showScreen(name) {
   Object.entries(SCREEN_IDS).forEach(([k, id]) => EZUI.show(id, k === name));
   $('#hud').classList.toggle('on', name === 'hud');
@@ -654,28 +817,70 @@ function boostBurst(ci) {
   const b = $('#boosttxt'); b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
 }
 
+/* ikon mobil (SVG) — warna, aksesori, livery ikut berubah */
+function carSvg(m, ci, acc, lv) {
+  const col = COLORS[ci].css, W = '#fff', GL = '#9fd8f5', DK = '#263238', S = 'stroke="#2b2350" stroke-width="2" stroke-linejoin="round"';
+  const r = (x, y, w, h, f, ex = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${S} ${ex}/>`;
+  const P = [{ by: 14, bh: 9 }, { by: 13, bh: 10 }, { by: 13, bh: 10 }, { by: 10, bh: 13 }][m];
+  let o = '';
+  if (m === 0) { o += r(2, P.by, 52, P.bh, col) + r(15, 6, 24, 9, col) + r(17, 8, 20, 5, GL); if (acc) o += r(1, 8, 9, 3, DK) + r(3, 10, 2, 5, DK); }
+  else if (m === 1) { o += r(2, P.by, 52, P.bh, col) + r(14, 4, 26, 10, W) + r(16, 6, 22, 6, GL); if (acc) o += r(21, 0, 5, 4, '#ff1744') + r(28, 0, 5, 4, '#2979ff'); }
+  else if (m === 2) { o += r(2, P.by, 52, P.bh, col) + r(14, 4, 26, 10, col) + r(16, 6, 22, 6, GL); if (acc) o += r(22, 0, 12, 4, W); }
+  else { o += r(0, 12, 4, 9, DK) + r(2, P.by, 52, P.bh, col) + r(10, 2, 32, 9, col) + r(13, 4, 26, 5, GL); if (acc) o += r(14, -2, 6, 3, '#fff176') + r(25, -2, 6, 3, '#fff176') + r(36, -2, 6, 3, '#fff176'); }
+  if (lv === 1) o += `<rect x="3" y="${P.by + 3}" width="50" height="2" fill="${W}"/><rect x="3" y="${P.by + 6}" width="50" height="2" fill="${W}"/>`;
+  else if (lv === 2) for (let i = 0; i < 10; i++) o += `<rect x="${4 + i * 5}" y="${P.by + 2}" width="5" height="5" fill="${i % 2 ? '#111' : W}"/>`;
+  else if (lv === 3) o += `<polygon points="54,${P.by + P.bh} 54,${P.by + 1} 36,${P.by + P.bh}" fill="#ff9800"/><polygon points="54,${P.by + P.bh} 54,${P.by + 5} 44,${P.by + P.bh}" fill="#ffeb3b"/>`;
+  o += r(8, 21, 11, 11, DK, 'rx="3"') + r(37, 21, 11, 11, DK, 'rx="3"');
+  return `<svg class="ci" viewBox="0 -3 56 38" aria-hidden="true">${o}</svg>`;
+}
+const diceHtml = (n) => {
+  const on = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] }[n];
+  return `<span class="die">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((c) => `<i class="${on.includes(c) ? 'on' : ''}"></i>`).join('')}</span>`;
+};
+function clueHtml(N) {
+  if (G.level === 2) {            // jari: ✋ = 5
+    const rest = N % 5, one = ['', '☝️', '✌️', '🤟', '🖖'][rest];
+    return `<div class="flags">${N >= 5 ? '✋' : ''}${one}</div>`;
+  }
+  if (G.level === 3) return `<div class="dice">${N > 6 ? diceHtml(6) + diceHtml(N - 6) : diceHtml(N)}</div>`;
+  return `<div class="flags">${'🚩'.repeat(N)}</div>`;
+}
+
+let _menuCard = (sel, i, e, label, small, cls = '') =>
+  `<button class="ccard ${cls} ${sel ? 'sel' : ''}" data-i="${i}"><span class="e">${e}</span>${label}${small ? `<small>${small}</small>` : ''}</button>`;
 function renderMenu() {
   $('#menu-coins').textContent = G.coins;
-  const card = (sel, i, e, label, small, extra = '') =>
-    `<button class="ccard ${sel ? 'sel' : ''}" data-i="${i}"><span class="e">${e}</span>${label}${small ? `<small>${small}</small>` : ''}${extra}</button>`;
-  $('#menu-cars').innerHTML = CARS.map((c, i) => card(i === G.carIdx, i, c.emoji, c.short, COLORS[i].name, `<i class="cb" style="background:${COLORS[i].css}"></i>`)).join('');
+  const card = _menuCard;
+  $('#menu-cars').innerHTML = CARS.map((c, i) => {
+    const cu = G.cust[i], icon = carSvg(i, cu.col, cu.acc, cu.lv);
+    if (G.owned[i]) return `<button class="ccard car ${i === G.carIdx ? 'sel' : ''}" data-i="${i}" aria-label="${c.name}">${icon}</button>`;
+    const buy = G.buying === i;
+    return `<button class="ccard car lock ${buy ? 'buy' : ''}" data-i="${i}" aria-label="${c.name}">${icon}<span class="lk">${buy ? '✔' : '🔒'}</span><small>🪙 ${CAR_PRICE[i]}</small></button>`;
+  }).join('') + card(false, 'k', '🎨', '', '', 'car');
   $('#menu-tracks').innerHTML = TRACKS.map((t, i) => card(i === G.trackIdx, i, t.emoji, t.name, t.len)).join('');
-  $('#menu-diffs').innerHTML = [['easy', '😊', 'Mudah', 'ikuti jalur'], ['hard', '🔥', 'Sulit', 'setir bebas']]
-    .map(([v, e, l, s]) => card(G.diff === v, v, e, l, s)).join('');
-  $('#menu-levels').innerHTML = [[1, '🚩', 'Gambar'], [2, '🔢', 'Angka']].map(([v, e, l]) => card(G.level === v, v, e, l, '')).join('');
+  $('#menu-diffs').innerHTML = [['easy', '😊', 'Mudah', 'ikuti jalur'], ['hard', '🔥', 'Normal', 'setir bebas'], ['curvy', '🌪️', 'Sulit', 'berbelok']]
+    .map(([v, e, l, sm]) => card(G.diff === v, v, e, l, sm)).join('');
+  $('#menu-levels').innerHTML = [[1, '🚩', 'Bendera'], [2, '🖐️', 'Jari'], [3, '🎲', 'Dadu']].map(([v, e, l]) => card(G.level === v, v, e, l, '')).join('');
+}
+function renderCustom() {
+  const c = G.cust[G.carIdx], card = _menuCard;
+  $('#cu-g').innerHTML = [['boy', '👦'], ['girl', '👧']].map(([v, e]) => card(G.char.g === v, v, e, '', '', 'big')).join('');
+  $('#cu-hat').innerHTML = HATS.map((e, i) => card(G.char.hat === i, i, e, '', '', 'big')).join('');
+  const sw = (cur, arr) => arr.map((h, i) => `<button class="swb ${cur === i ? 'sel' : ''}" data-i="${i}" style="background:#${h.toString(16).padStart(6, '0')}" aria-label="warna"></button>`).join('');
+  $('#cu-shirt').innerHTML = sw(G.char.shirt, SHIRTS);
+  $('#cu-col').innerHTML = sw(c.col, COLORS.map((x) => x.hex));
+  $('#cu-acc').innerHTML = [0, 1].map((v) => `<button class="ccard car ${c.acc === v ? 'sel' : ''}" data-i="${v}">${carSvg(G.carIdx, c.col, v, c.lv)}${v ? `<small>${ACC_ICON[G.carIdx]}</small>` : ''}</button>`).join('');
+  $('#cu-lv').innerHTML = [0, 1, 2, 3].map((v) => `<button class="ccard car ${c.lv === v ? 'sel' : ''}" data-i="${v}">${carSvg(G.carIdx, c.col, c.acc, v)}</button>`).join('');
 }
 function renderPit() {
   const R = G.R, N = R.N;
-  $('#pit-info').innerHTML = G.level === 1
-    ? `<div class="flags">${'🚩'.repeat(N)}</div><p>Hitung benderanya!<br>1 bendera = 1 kotak bensin</p>`
-    : `<div class="bignum">Jarak: ${N}</div><p>Isi bensin sebanyak angkanya!</p>`;
+  $('#pit-info').innerHTML = `${clueHtml(N)}<p>Berapa kotak bensinnya?</p>`;
   const slots = [];
-  for (let i = 0; i < TANK_MAX; i++) slots.push(`<button class="slot ${i < G.fill ? 'full' : ''}" data-i="${i}">${i + 1}</button>`);
+  for (let i = 0; i < TANK_MAX; i++) slots.push(`<button class="slot ${i < G.fill ? 'full' : ''}" data-i="${i}" aria-label="kotak ${i + 1}"></button>`);
   $('#pit-tank').innerHTML = slots.join('');
-  $('#pit-count').textContent = G.fill;
+  $('#pit-count').textContent = '⛽';
   const cost = G.fill * FUEL_PRICE;
-  $('#pit-cost').textContent = G.fill ? `${G.fill} kotak × ${FUEL_PRICE} koin = ${cost} koin` : 'Isi bensinnya dulu ya!';
-  $('#pit-wallet').textContent = `🪙 ${G.coins}  →  sisa ${G.coins - cost}`;
+  $('#pit-cost').textContent = G.fill ? '🪙'.repeat(cost) : 'Isi bensinnya dulu ya!';
   $('#btn-pay').disabled = G.fill < 1;
   $('#btn-plus').disabled = G.fill >= TANK_MAX;
   $('#btn-minus').disabled = G.fill <= 0;
@@ -685,7 +890,7 @@ function pitSet(n) {
   const afford = Math.floor(G.coins / FUEL_PRICE);
   if (n > afford) {
     n = afford;
-    const w = $('#pit-wallet'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
+    const w = $('#pit-cost'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
     toast('Uangmu kurang! 🪙', 900); sfx.lose();
   }
   if (n !== G.fill) { G.fill = n; sfx.tick(); if (n > 0) speak(NUM_WORDS[n]); }
@@ -696,7 +901,8 @@ function buildHud() {
   const R = G.R;
   $('#h-ticks').innerHTML = Array.from({ length: R.N }, (_, i) => `<i style="left:${((i + 1) / R.N) * 100}%">🚩</i>`).join('');
   $('#h-pm').style.background = COLORS[R.p.color].css;
-  $('#h-am').style.background = COLORS[R.a.color].css;
+  $('#h-am').style.background = COLORS[R.bots[0].color].css;
+  $('#h-bm').style.background = COLORS[R.bots[1].color].css;
   $('#h-sw').style.background = COLORS[R.p.color].css;
   $('#h-hintx').textContent = R.hard ? 'Lewati petak warna ini = BOOST! 🔥' : 'Jalur warna ini = BOOST! 🔥';
   $('#h-fuel').innerHTML = Array.from({ length: R.F }, () => '<div class="fs"><i></i></div>').join('');
@@ -704,11 +910,12 @@ function buildHud() {
   R.hudRem = -1;
 }
 function updateHud() {
-  const R = G.R, p = R.p, a = R.a;
+  const R = G.R, p = R.p;
   $('#h-pm').style.left = (clamp(p.s / R.len, 0, 1) * 100) + '%';
-  $('#h-am').style.left = (clamp(a.s / R.len, 0, 1) * 100) + '%';
-  const pos = p.s >= a.s ? 1 : 2;
-  if (R.hudPos !== pos) { R.hudPos = pos; $('#h-pos').textContent = pos + '/2'; }
+  $('#h-am').style.left = (clamp(R.bots[0].s / R.len, 0, 1) * 100) + '%';
+  $('#h-bm').style.left = (clamp(R.bots[1].s / R.len, 0, 1) * 100) + '%';
+  const pos = 1 + R.bots.filter((q) => q.s > p.s).length;
+  if (R.hudPos !== pos) { R.hudPos = pos; $('#h-pos').textContent = pos + '/3'; }
   const rem = Math.max(0, R.F - p.s / SEG);
   if (Math.abs(rem - R.hudRem) > 0.02) {
     R.hudRem = rem;
@@ -741,13 +948,13 @@ function press(dir, on) {              // mode Sulit: tahan tombol = setir terus
 }
 
 /* ======================= BALAPAN ======================= */
-function placeCar(o, x, s, yaw, bob) { o.position.set(x, bob, -s); o.rotation.y = yaw; }
+function placeCar(o, x, s, yaw, bob) { const r = roadXZ(s, x, _xz); o.position.set(r.X, bob, r.Z); o.rotation.y = yaw - r.psi; }
 
-function makePads(N, rng, pc, ac) {
+function makePads(N, rng, pc, ac, bc) {
   const pads = [];
   let lastX = 0;
   for (let k = 0; k < N; k++) {
-    const cols = shuffle([pc, ac, Math.floor(rng() * 4)], rng);   // tiap segmen: warna pemain, warna lawan, 1 acak
+    const cols = shuffle([pc, ac, bc], rng);   // tiap segmen: warna pemain + dua lawan
     for (let j = 0; j < 3; j++) {
       let x, tries = 0;
       do { x = (rng() * 2 - 1) * 4.2; tries++; } while (Math.abs(x - lastX) < 2.6 && tries < 20);
@@ -775,7 +982,13 @@ function nextPad(R, s, color, ahead) {
 }
 function previewLayout() {
   const T = TRACKS[G.trackIdx], rng = mulberry32(7 + G.trackIdx);
-  return G.diff === 'hard' ? makePads(T.flags, rng, G.carIdx, (G.carIdx + 1) % 4) : makePerms(T.flags, rng);
+  if (G.diff === 'easy') return makePerms(T.flags, rng);
+  const o = oppSpecs(mulberry32(5), G.cust[G.carIdx].col);
+  return makePads(T.flags, rng, G.cust[G.carIdx].col, o[0].c, o[1].c);
+}
+function mountPreview() {
+  const o = oppSpecs(mulberry32(5), G.cust[G.carIdx].col);
+  mountCar('p', mySpec()); mountCar('a', o[0]); mountCar('b', o[1]);
 }
 
 function respawnStreak(m, cz) {
@@ -789,17 +1002,18 @@ function respawnStreak(m, cz) {
 function prepareRace() {
   const T = TRACKS[G.trackIdx];
   const rng = mulberry32((Math.random() * 2147483647) | 0);
-  const hard = G.diff === 'hard';
-  let ac; do { ac = Math.floor(rng() * 4); } while (ac === G.carIdx);
+  const hard = G.diff !== 'easy', curvy = G.diff === 'curvy';
+  const my = mySpec(), opp = oppSpecs(rng, my.c);
   const perms = makePerms(T.flags, rng);
-  const pads = hard ? makePads(T.flags, rng, G.carIdx, ac) : null;
-  if (hard) { pads[0].color = G.carIdx; pads[0].x = LANE_X[1]; }      // petak pertama pas di depan mobil pemain
-  buildWorld(G.trackIdx, hard ? pads : perms, hard);
-  mountCar('p', G.carIdx); mountCar('a', ac);
+  const pads = hard ? makePads(T.flags, rng, my.c, opp[0].c, opp[1].c) : null;
+  if (hard) { pads[0].color = my.c; pads[0].x = LANE_X[1]; }      // petak pertama pas di depan mobil pemain
+  buildWorld(G.trackIdx, hard ? pads : perms, G.diff);
+  mountCar('p', my); mountCar('a', opp[0]); mountCar('b', opp[1]);
+  const bot = (sp, obj, lane, skill, base, timer) => ({ s: 0, lane, x: LANE_X[lane], vx: 0, speed: 0, boost: false, boostT: 0, tx: LANE_X[lane], color: sp.c, obj, timer, finished: false, skill, base });
   const R = {
-    N: T.flags, len: T.flags * SEG, hard, perms, pads, rng, F: 0, t: 0, cd: 3.2, lastN: 4, phase: 'wait',
-    p: { s: 0, lane: 1, x: LANE_X[1], vx: 0, speed: 0, boost: false, boostT: 0, color: G.carIdx, obj: CAR.p },
-    a: { s: 0, lane: 2, x: LANE_X[2], vx: 0, speed: 0, boost: false, boostT: 0, tx: LANE_X[2], color: ac, obj: CAR.a, timer: 0.6, finished: false },
+    N: T.flags, len: T.flags * SEG, hard, curvy, perms, pads, rng, F: 0, t: 0, cd: 3.2, lastN: 4, phase: 'wait',
+    p: { s: 0, lane: 1, x: LANE_X[1], vx: 0, speed: 0, boost: false, boostT: 0, color: my.c, obj: CAR.p },
+    bots: [bot(opp[0], CAR.a, 2, AI_SKILL, AI_BASE, 0.6), bot(opp[1], CAR.b, 0, AI_SKILL - 0.1, AI_BASE - 0.4, 0.9)],
     got: 0, lastSeg: 0, coinList: [], parts: [], fx: 0, towed: false, truck: null, truckS: 0, boostToast: -9, doneT: 0,
     hudPos: 0, hudRem: -1, fxOn: false, streaks: [], streakMat: null,
   };
@@ -811,13 +1025,13 @@ function prepareRace() {
     const cx = hard ? (rng() * 2 - 1) * 4.5 : LANE_X[lane];
     for (let j = 0; j < 3; j++) {
       const m = new THREE.Mesh(coinGeo, coinMat), s = s0 + j * 5;
-      m.position.set(cx, 1.3, -s);
+      const rc = roadXZ(s, cx, _xz); m.position.set(rc.X, 1.3, rc.Z);
       world.dyn.add(m);
       R.coinList.push({ m, s, x: cx, got: false });
     }
   }
   // partikel api boost (oranye, kuning, warna mobil)
-  const mats = [new THREE.MeshBasicMaterial({ color: 0xff9800 }), new THREE.MeshBasicMaterial({ color: 0xffeb3b }), new THREE.MeshBasicMaterial({ color: COLORS[G.carIdx].hex })];
+  const mats = [new THREE.MeshBasicMaterial({ color: 0xff9800 }), new THREE.MeshBasicMaterial({ color: 0xffeb3b }), new THREE.MeshBasicMaterial({ color: COLORS[my.c].hex })];
   for (let i = 0; i < 40; i++) {
     const m = new THREE.Mesh(boxGeo, mats[i % 3]); m.visible = false; world.dyn.add(m);
     R.parts.push({ m, life: 0, max: 0.35, vz: 0 });
@@ -840,7 +1054,7 @@ function startRace() {
   R.phase = 'count';
   G.state = 'race';
   resetInput();
-  setMusic(null);
+  setMusic('race');
   showScreen('hud');
   buildHud(); updateHud();
   $('#h-coins').textContent = G.coins;
@@ -852,10 +1066,10 @@ function segIdx(R, s) { return clamp(Math.floor(s / SEG), 0, R.N - 1); }
 function finishPlayer() {
   const R = G.R;
   R.phase = 'done'; R.doneT = 0;
-  R.place = R.a.finished ? 2 : 1;
+  R.place = 1 + R.bots.filter((q) => q.finished).length;
   R.p.boost = false;
   setMusic(null); A.boostTarget = 0; boostFx(false); R.fxOn = false;
-  (R.place === 1 && !R.towed) ? sfx.win() : sfx.lose();
+  (R.place === 1 && !R.towed) ? sfx.win() : (R.place === 2 && !R.towed ? sfx.flag() : sfx.lose());
 }
 
 function spawnFlame(R, o) {
@@ -866,15 +1080,48 @@ function spawnFlame(R, o) {
   pr.vz = 3 + Math.random() * 4;
 }
 
+function stepBot(R, a, dt) {
+  const p = R.p;
+  if (!a.finished) {
+    a.timer -= dt;
+    let inZone;
+    const dr = R.curvy && R.phase !== 'done' ? -curvAt(a.s) * a.speed * DRIFT : 0;
+    if (R.hard) {
+      if (a.timer <= 0) {
+        a.timer = 0.5 + R.rng() * 0.9;
+        const nx = nextPad(R, a.s, a.color, 70);
+        if (nx && R.rng() < a.skill) a.tx = nx.x; else a.tx = clamp(a.tx + (R.rng() - 0.5) * 7, -4.6, 4.6);
+      }
+      a.vx += (clamp((a.tx - a.x) * 3, -AI_STEER, AI_STEER) - dr - a.vx) * Math.min(1, dt * 6);
+      a.x = clamp(a.x + (a.vx + dr) * dt, -ROAD_HALF, ROAD_HALF);
+      if (padUnder(R, a.s, a.x, a.color)) a.boostT = LINGER; else a.boostT = Math.max(0, a.boostT - dt);
+      inZone = a.boostT > 0;
+    } else {
+      const gl = R.perms[segIdx(R, a.s)].indexOf(a.color);
+      if (a.timer <= 0) { a.lane = R.rng() < a.skill ? gl : Math.floor(R.rng() * 4); a.timer = 0.5 + R.rng() * 0.9; }
+      a.x += (LANE_X[a.lane] - a.x) * Math.min(1, dt * 6);
+      inZone = Math.abs(a.x - LANE_X[gl]) < 1.1;
+    }
+    a.boost = inZone;
+    let target = a.base * (inZone ? BOOST : 1);
+    if (a.s < p.s - 40) target *= 1.05; else if (a.s > p.s + 40) target *= 0.93;
+    a.speed += (target - a.speed) * Math.min(1, dt * 3);
+    a.s += a.speed * dt;
+    if (a.s >= R.len) { a.finished = true; a.s = R.len; }
+  } else {
+    a.speed *= Math.exp(-dt * 1.5); a.s += a.speed * dt; a.boost = false;
+  }
+}
+
 function stepRace(dt) {
-  const R = G.R, p = R.p, a = R.a;
+  const R = G.R, p = R.p;
   R.t += dt;
 
   if (R.phase === 'count') {
     R.cd -= dt;
     const n = Math.ceil(R.cd);
     if (n !== R.lastN && n > 0) { R.lastN = n; showCount(String(n)); sfx.beep(); }
-    if (R.cd <= 0) { R.phase = 'go'; showCount('GO!', 800); sfx.go(); setMusic('race'); }
+    if (R.cd <= 0) { R.phase = 'go'; showCount('GO!', 800); sfx.go(); }
     return;
   }
 
@@ -883,7 +1130,8 @@ function stepRace(dt) {
   if (R.hard) {
     const ax = canSteer ? inputAxis() : 0;
     p.vx += (ax * STEER_SPEED - p.vx) * Math.min(1, dt * 10);
-    p.x = clamp(p.x + p.vx * dt, -ROAD_HALF, ROAD_HALF);
+    const dr = R.curvy && R.phase === 'go' ? -curvAt(p.s) * p.speed * DRIFT : 0;     // tikungan mendorong mobil ke luar
+    p.x = clamp(p.x + (p.vx + dr) * dt, -ROAD_HALF, ROAD_HALF);
   } else {
     p.x += (LANE_X[p.lane] - p.x) * Math.min(1, dt * 11);
   }
@@ -950,35 +1198,8 @@ function stepRace(dt) {
     }
   }
 
-  /* --- komputer --- */
-  if (!a.finished) {
-    a.timer -= dt;
-    let inZone;
-    if (R.hard) {
-      if (a.timer <= 0) {
-        a.timer = 0.5 + R.rng() * 0.9;
-        const nx = nextPad(R, a.s, a.color, 70);
-        if (nx && R.rng() < AI_SKILL) a.tx = nx.x; else a.tx = clamp(a.tx + (R.rng() - 0.5) * 7, -4.6, 4.6);
-      }
-      a.vx += (clamp((a.tx - a.x) * 3, -AI_STEER, AI_STEER) - a.vx) * Math.min(1, dt * 6);
-      a.x = clamp(a.x + a.vx * dt, -ROAD_HALF, ROAD_HALF);
-      if (padUnder(R, a.s, a.x, a.color)) a.boostT = LINGER; else a.boostT = Math.max(0, a.boostT - dt);
-      inZone = a.boostT > 0;
-    } else {
-      const gl = R.perms[segIdx(R, a.s)].indexOf(a.color);
-      if (a.timer <= 0) { a.lane = R.rng() < AI_SKILL ? gl : Math.floor(R.rng() * 4); a.timer = 0.5 + R.rng() * 0.9; }
-      a.x += (LANE_X[a.lane] - a.x) * Math.min(1, dt * 6);
-      inZone = Math.abs(a.x - LANE_X[gl]) < 1.1;
-    }
-    a.boost = inZone;
-    let target = AI_BASE * (inZone ? BOOST : 1);
-    if (a.s < p.s - 40) target *= 1.05; else if (a.s > p.s + 40) target *= 0.93;
-    a.speed += (target - a.speed) * Math.min(1, dt * 3);
-    a.s += a.speed * dt;
-    if (a.s >= R.len) { a.finished = true; a.s = R.len; }
-  } else {
-    a.speed *= Math.exp(-dt * 1.5); a.s += a.speed * dt; a.boost = false;
-  }
+  /* --- komputer (2 lawan) --- */
+  for (const q of R.bots) stepBot(R, q, dt);
 
   /* --- efek boost: api, vignette, suara mesin --- */
   const bo = R.phase === 'go' && p.boost;
@@ -988,7 +1209,7 @@ function stepRace(dt) {
   while (R.fx > 0.03) {
     R.fx -= 0.03;
     if (bo) spawnFlame(R, p.obj);
-    if (a.boost) spawnFlame(R, a.obj);
+    for (const q of R.bots) if (q.boost) spawnFlame(R, q.obj);
   }
   for (const q of R.parts) {
     if (q.life <= 0) continue;
@@ -1015,30 +1236,19 @@ function showResult() {
   const R = G.R;
   G.state = 'result';
   const exact = !R.towed && R.F === R.N;
-  const bonusPlace = R.towed ? 0 : (R.place === 1 ? BONUS_1ST : BONUS_2ND);
-  const bonusExact = exact ? BONUS_EXACT : 0;
-  const earned = R.got + bonusPlace + bonusExact;
+  const bonusPlace = R.towed ? 0 : BONUS_PLACE[R.place - 1];
+  const earned = R.got + bonusPlace + (exact ? BONUS_EXACT : 0);
   G.coins += earned;
   save();
-  let title;
-  if (R.towed) title = '🚛 Diderek ke finish';
-  else title = R.place === 1 ? '🥇 Juara 1!' : '🥈 Juara 2';
-  let fuelLine;
-  if (R.towed) fuelLine = `⛽ Bensin kurang! Kamu isi ${R.F} kotak, padahal butuh ${R.N} kotak.`;
-  else if (exact) fuelLine = `⭐ Pas banget! Bensinmu ${R.N} kotak, sesuai jaraknya.`;
-  else fuelLine = `⛽ Kelebihan ${R.F - R.N} kotak. ${R.F - R.N} × ${FUEL_PRICE} = ${(R.F - R.N) * FUEL_PRICE} koin terbuang.`;
-  $('#res-title').textContent = title;
-  $('#res-lines').innerHTML =
-    `<p>${R.hard ? '🔥 Mode Sulit' : '😊 Mode Mudah'} · ${TRACKS[G.trackIdx].name}</p>` +
-    `<p class="${exact ? 'good' : 'bad'}">${fuelLine}</p>` +
-    `<table><tr><td>🪙 Koin di jalan</td><td>+${R.got}</td></tr>` +
-    `<tr><td>🏆 Bonus juara</td><td>+${bonusPlace}</td></tr>` +
-    `<tr><td>⭐ Bonus bensin pas</td><td>+${bonusExact}</td></tr>` +
-    `<tr class="tot"><td>Uangmu sekarang</td><td>🪙 ${G.coins}</td></tr></table>`;
+  const win = R.place === 1 && !R.towed;
+  const big = R.towed ? '🚛' : ['🥇', '🥈', '🥉'][R.place - 1];
+  $('#res-title').textContent = R.towed ? 'Diderek!' : `Juara ${R.place}!`;
+  $('#res-lines').innerHTML = `<div class="rbig${win ? ' win' : ''}">${big}</div><div class="rcoins">+${earned} 🪙</div>` +
+    (R.towed ? '<p class="rnote bad">⛽ Bensin kurang</p>' : exact ? '<p class="rnote good">⭐ Bensin pas!</p>' : R.F > R.N ? '<p class="rnote bad">⛽ Bensin kelebihan</p>' : '');
   clearOverlays();
   resetInput();
   boostFx(false); A.boostTarget = 0; engineUpdate(0, false, false);
-  setMusic('menu');
+  setMusic(win ? 'win' : 'menu');
   showScreen('result');
   $('#h-coins').textContent = G.coins;
 }
@@ -1048,34 +1258,45 @@ function updatePreview(dt) {
   const ang = G.t * 0.35 + 0.6, r = G.state === 'pit' ? 12 : 11;
   camera.position.set(Math.sin(ang) * r, 3.6, Math.cos(ang) * r);
   camera.lookAt(0, 1.1, -1.5);
+  if (G.state === 'custom') {          // dekat ke pengemudi
+    const a2 = G.t * 0.5 + 0.5;
+    camera.position.set(LANE_X[1] + Math.sin(a2) * 7.5, 4.2, Math.cos(a2) * 7.5);
+    camera.lookAt(LANE_X[1], 2.0, 0);
+    if (innerWidth > innerHeight) camera.translateX(-2.6);
+  }
   if (G.state === 'menu' && innerWidth > innerHeight) camera.translateX(-3.6);   // mobil muncul di kanan panel
   if (camera.fov !== 55) { camera.fov = 55; camera.updateProjectionMatrix(); }
   const bob = Math.sin(G.t * 3) * 0.03;
   if (CAR.p) placeCar(CAR.p, LANE_X[1], 0, 0, bob);
-  if (CAR.a) placeCar(CAR.a, LANE_X[2], 0, 0, bob);
+  const cu = G.state === 'custom';
+  if (CAR.a) { CAR.a.visible = !cu; placeCar(CAR.a, LANE_X[2], 7, 0, bob); }
+  if (CAR.b) { CAR.b.visible = !cu; placeCar(CAR.b, LANE_X[0], 13, 0, bob); }
 }
 function updateChase(dt) {
   const R = G.R, p = R.p, cp = camParams();
   const f = 1 - Math.exp(-dt * 6);
   camera.fov += (cp.fov + (p.boost ? 12 : 0) - camera.fov) * f;
   camera.updateProjectionMatrix();
-  const tx = p.x * 0.55, tz = -p.s + cp.dist;
-  camera.position.x += (tx - camera.position.x) * f;
+  const cb = roadXZ(p.s - cp.dist, p.x * 0.55, _xz), tx = cb.X, tz = cb.Z;
+  const fz = R.curvy ? f * 1.4 : 1 - Math.exp(-dt * 10);
+  camera.position.x += (tx - camera.position.x) * (R.curvy ? Math.min(1, f * 1.4) : f);
   camera.position.y += (cp.height - camera.position.y) * f;
-  camera.position.z += (tz - camera.position.z) * (1 - Math.exp(-dt * 10));
-  camera.lookAt(p.x * 0.6, 1.6, -p.s - 14);
+  camera.position.z += (tz - camera.position.z) * Math.min(1, fz);
+  const la = roadXZ(p.s + 14, p.x * 0.6, _xz2);
+  camera.lookAt(la.X, 1.6, la.Z);
   camera.rotateZ((Math.random() - 0.5) * 0.014 * A.boostI);      // goyang halus saat boost
 }
 function syncCars() {
   const R = G.R;
-  for (const c of [R.p, R.a]) {
-    const bob = Math.sin(R.t * 18 + (c === R.a ? 1.7 : 0)) * 0.04 * Math.min(1, c.speed / BASE);
+  [R.p, ...R.bots].forEach((c, i) => {
+    const bob = Math.sin(R.t * 18 + i * 1.7) * 0.04 * Math.min(1, c.speed / BASE);
     const yaw = R.hard ? -c.vx * 0.03 : -(LANE_X[c.lane] - c.x) * 0.08;
     placeCar(c.obj, c.x, c.s, yaw, bob);
-  }
+  });
   if (R.truck && R.truck.visible) {
-    R.truck.position.set(R.p.x, 0, -R.truckS);
-    R.truck.rotation.y = Math.PI;
+    const r = roadXZ(R.truckS, R.p.x, _xz);
+    R.truck.position.set(r.X, 0, r.Z);
+    R.truck.rotation.y = Math.PI - r.psi;
   }
 }
 
@@ -1086,7 +1307,7 @@ function update(dt) {
     if (G.state === 'race') stepRace(dt);
     else {
       R.p.speed *= Math.exp(-dt * 1.8); R.p.s += R.p.speed * dt;
-      R.a.speed *= Math.exp(-dt * 1.5); R.a.s += R.a.speed * dt;
+      for (const q of R.bots) { q.speed *= Math.exp(-dt * 1.5); q.s += q.speed * dt; }
     }
     syncCars();
     updateStreaks(R);
@@ -1094,8 +1315,9 @@ function update(dt) {
     else {    // orbit pelan di garis finish
       G.t += dt;
       const ang = G.t * 0.5;
-      camera.position.set(R.p.x + Math.sin(ang) * 11, 4.2, -R.p.s + Math.cos(ang) * 11);
-      camera.lookAt(R.p.x, 1.2, -R.p.s);
+      const rp = roadXZ(R.p.s, R.p.x, _xz);
+      camera.position.set(rp.X + Math.sin(ang) * 11, 4.2, rp.Z + Math.cos(ang) * 11);
+      camera.lookAt(rp.X, 1.2, rp.Z);
     }
   } else {
     updatePreview(dt);
@@ -1112,9 +1334,16 @@ function goMenu() {
   if (G.coins < MIN_COINS) { G.coins = MIN_COINS; note = '🪙 Kamu dapat uang saku supaya bisa isi bensin!'; save(); }
   $('#menu-note').textContent = note;
   G.R = null;
-  buildWorld(G.trackIdx, previewLayout(), G.diff === 'hard');
-  mountCar('p', G.carIdx); mountCar('a', (G.carIdx + 1) % 4);
+  G.buying = -1;
+  setupPreview();
   renderMenu(); showScreen('menu');
+}
+function setupPreview() { buildWorld(G.trackIdx, previewLayout(), G.diff); mountPreview(); }
+function goCustom() {
+  G.state = 'custom'; G.buying = -1;
+  setMusic('menu');
+  setupPreview();
+  renderCustom(); showScreen('custom');
 }
 function goPit() {
   clearOverlays();
@@ -1126,21 +1355,25 @@ function goPit() {
 /* ======================= EVENT ======================= */
 $('#menu-cars').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
-  G.carIdx = +t.dataset.i; save(); sfx.tick();
-  mountCar('p', G.carIdx); mountCar('a', (G.carIdx + 1) % 4);
-  buildWorld(G.trackIdx, previewLayout(), G.diff === 'hard');
+  if (t.dataset.i === 'k') { sfx.tick(); goCustom(); return; }
+  const i = +t.dataset.i;
+  if (G.owned[i]) { G.carIdx = i; G.buying = -1; save(); sfx.tick(); setupPreview(); }
+  else if (G.buying !== i) { G.buying = i; sfx.tick(); }                     // ketuk pertama: tanya dulu
+  else if (G.coins >= CAR_PRICE[i]) {                                          // ketuk kedua: beli
+    G.coins -= CAR_PRICE[i]; G.owned[i] = true; G.carIdx = i; G.buying = -1; save(); sfx.win(); toast('Mobil baru! 🎉', 1400); setupPreview();
+  } else { G.buying = -1; sfx.lose(); toast('Uangmu kurang! 🪙', 1000); }
   renderMenu();
 });
 $('#menu-tracks').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
   G.trackIdx = +t.dataset.i; save(); sfx.tick();
-  buildWorld(G.trackIdx, previewLayout(), G.diff === 'hard');
+  buildWorld(G.trackIdx, previewLayout(), G.diff);
   renderMenu();
 });
 $('#menu-diffs').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
-  G.diff = t.dataset.i === 'hard' ? 'hard' : 'easy'; save(); sfx.tick();
-  buildWorld(G.trackIdx, previewLayout(), G.diff === 'hard');
+  G.diff = ['easy', 'hard', 'curvy'].includes(t.dataset.i) ? t.dataset.i : 'easy'; save(); sfx.tick();
+  buildWorld(G.trackIdx, previewLayout(), G.diff);
   renderMenu();
 });
 $('#menu-levels').addEventListener('click', (e) => {
@@ -1148,6 +1381,14 @@ $('#menu-levels').addEventListener('click', (e) => {
   G.level = +t.dataset.i; save(); sfx.tick(); renderMenu();
 });
 $('#btn-play').addEventListener('click', () => { sfx.beep(); goPit(); });
+const onCu = (id, fn) => $(id).addEventListener('click', (e) => { const t = e.target.closest('[data-i]'); if (!t) return; fn(t.dataset.i); save(); sfx.tick(); mountCar('p', mySpec()); renderCustom(); });
+onCu('#cu-g', (v) => { G.char.g = v === 'girl' ? 'girl' : 'boy'; });
+onCu('#cu-hat', (v) => { G.char.hat = clamp(+v, 0, 4); });
+onCu('#cu-shirt', (v) => { G.char.shirt = clamp(+v, 0, 5); });
+onCu('#cu-col', (v) => { G.cust[G.carIdx].col = clamp(+v, 0, 3); setupPreview(); });
+onCu('#cu-acc', (v) => { G.cust[G.carIdx].acc = +v ? 1 : 0; });
+onCu('#cu-lv', (v) => { G.cust[G.carIdx].lv = clamp(+v, 0, 3); });
+$('#btn-cu-ok').addEventListener('click', () => { G.charSet = true; save(); sfx.beep(); goMenu(); });
 $('#pit-tank').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
   const n = +t.dataset.i + 1;
@@ -1157,7 +1398,7 @@ $('#btn-plus').addEventListener('click', () => pitSet(G.fill + 1));
 $('#btn-minus').addEventListener('click', () => pitSet(G.fill - 1));
 $('#btn-say').addEventListener('click', () => {
   const N = G.R.N;
-  speak(G.level === 1 ? 'Hitung benderanya, lalu isi bensin sebanyak itu.' : `Jarak, ${NUM_WORDS[N]}. Isi bensin sesuai angkanya.`);
+  speak(G.level === 1 ? 'Hitung benderanya, lalu isi bensin sebanyak itu.' : G.level === 2 ? 'Hitung jarinya, lalu isi bensin sebanyak itu.' : 'Hitung titik di dadu, lalu isi bensin sebanyak itu.');
 });
 $('#btn-pay').addEventListener('click', () => { if (G.fill >= 1) startRace(); });
 $('#btn-back').addEventListener('click', goMenu);
@@ -1217,10 +1458,10 @@ loadSave();
 syncSys();
 {
   const bm = document.querySelector('meta[name=gembalap-build]');
-  $('#ver').textContent = 'Gembalap v0.2 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
+  $('#ver').textContent = 'Gembalap v0.3 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
 }
 resize();
-goMenu();
+if (G.charSet) goMenu(); else goCustom();
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1231,4 +1472,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // untuk pengujian / debug
-window.__balap = { G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };
+window.__balap = { ROAD, curvAt, roadXZ, goCustom, G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };
