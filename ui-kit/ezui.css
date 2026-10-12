@@ -1,0 +1,63 @@
+/* EZUI — disalin dari sikhsanf/ezventure/ui-kit (token + standar modal). Aturan khusus karakter Ezventure sudah dibuang. */
+:root{
+  /* Concept: full-bleed storybook diorama. Chunky sticker UI (ink outline + hard shadow) hugs the corners so the 3D world stays clear. Single bright look by choice. */
+  --sky:#bfe8ff; --ink:#2b2350; --paper:#fffaf0; --berry:#ff5d8f; --sun:#ffc83a; --leaf:#3fbf6e; --sea:#46a6ff; --dusk:#7a55ff;
+  --btn:max(80px,16vmin);
+  --mg:12px; --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px); --tap:48px; --r-panel:26px;
+  --sl:env(safe-area-inset-left,0px); --sr:env(safe-area-inset-right,0px);
+  --f-display:'Baloo 2','Trebuchet MS',system-ui,sans-serif;
+  --f-body:'Nunito','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f-body);color:var(--ink)}
+h2,h3{font-family:var(--f-display);margin:0}
+[hidden]{display:none!important}
+/* EZUI:START modal-standard
+   ANATOMY   .ov.dlg > .panel(.sm|.md|.lg) > .phead (title + .acts[X]) / .pbody (the ONLY scroll area) / .pfoot
+   FOOTER    secondary action = LEFT (Back/Cancel/Close), primary action = RIGHT (Continue/Save/Close). Never inside .pbody.
+   PLACEMENT centered dialog on landscape/desktop, bottom sheet on portrait phones, .side = left editor panel (character creator)
+   RULE      header and footer are always on screen; nothing the player must press may require scrolling. */
+.ov{position:absolute;inset:0;display:none;z-index:20;box-sizing:border-box}
+.ov.show{display:flex}
+.ov.dlg{align-items:center;justify-content:center;background:rgba(43,35,80,.35);padding:calc(var(--mg) + var(--st)) calc(var(--mg) + var(--sr)) calc(var(--mg) + var(--sb)) calc(var(--mg) + var(--sl))}
+.ov.dlg.top{z-index:40;background:rgba(43,35,80,.6)}
+.panel{--pw:520px;display:flex;flex-direction:column;width:min(var(--pw),100%);max-height:100%;box-sizing:border-box;background:var(--paper);border:4px solid var(--ink);border-radius:var(--r-panel);box-shadow:0 8px 0 var(--ink);overflow:hidden;-webkit-user-select:text;user-select:text}
+.panel.sm{--pw:420px}.panel.md{--pw:520px}.panel.lg{--pw:820px}
+.phead{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px 6px 18px}
+.phead h2{display:flex;align-items:center;gap:8px;min-width:0}
+.phead .acts{display:flex;gap:8px;align-items:center;flex:none}
+.pbody{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:4px 18px 12px}
+.pfoot{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px 14px;border-top:3px dashed rgba(43,35,80,.16);background:var(--paper)}
+.pfoot .fg{display:flex;gap:8px;min-width:0}
+.pfoot>.pill:last-child{margin-left:auto}
+.pfoot .pill{min-width:116px}
+.pill{min-height:var(--tap);font:800 18px/1 var(--f-display);padding:12px 20px;border-radius:999px;border:3px solid var(--ink);background:var(--paper);box-shadow:0 4px 0 var(--ink);cursor:pointer;touch-action:manipulation;display:inline-flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box}
+.pill:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.pill.go{background:var(--leaf);color:#fff}
+.pill.warn{background:var(--berry);color:#fff}
+.pill[disabled]{opacity:.45}
+.xbtn{width:var(--tap);height:var(--tap);border-radius:50%;border:3px solid var(--ink);background:var(--berry);box-shadow:0 3px 0 var(--ink);padding:0;display:grid;place-items:center;cursor:pointer;touch-action:manipulation;flex:none}
+.xbtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.xbtn .ico{width:26px;height:26px}
+.ov.side{align-items:stretch;justify-content:flex-start;padding:0}
+.ov.side .panel{--pw:min(420px,46%);height:100%;max-height:none;border-radius:0 var(--r-panel) var(--r-panel) 0;border-left:0}
+.cols{display:block}
+@media (max-height:520px){
+  :root{--mg:8px;--tap:42px}
+  .phead{padding:6px 12px 2px 14px}.phead h2{font-size:20px}
+  .pbody{padding:2px 14px 8px}
+  .pfoot{padding:8px 12px 10px}.pill{font-size:16px;padding:8px 16px}.pfoot .pill{min-width:104px}
+  .xbtn .ico{width:22px;height:22px}
+}
+@media (orientation:landscape) and (max-height:520px){
+  .ov.side .panel{--pw:min(640px,62%)}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 14px;align-items:start}
+  .ov.side h3{margin:6px 0 3px;font-size:14px}
+}
+@media (max-width:640px) and (orientation:portrait){
+  .ov.dlg,.ov.side{align-items:flex-end;justify-content:center;padding:0}
+  .ov.dlg .panel,.ov.side .panel{--pw:100%;width:100%;height:auto;max-height:90%;border-radius:var(--r-panel) var(--r-panel) 0 0;border-bottom:0;border-left:4px solid var(--ink)}
+  .ov.side .panel{max-height:62%}
+  .pfoot{padding-bottom:calc(14px + var(--sb))}
+}
+/* EZUI:END */

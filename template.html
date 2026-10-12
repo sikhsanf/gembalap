@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><title>Gembalap</title><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="gembalap-build" content="__BUILD__"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#2b2350"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Gembalap"><style>html,body{margin:0;height:100%}[hidden]{display:none!important}.pfoot #btn-say{min-width:0;padding-left:14px;padding-right:14px}
+@media (max-width:420px){.pfoot .pill{min-width:0;padding-left:14px;padding-right:14px;font-size:16px}}
+</style></head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Konsep: UI stiker ala Ezventure (outline tinta + bayangan keras) di pojok-pojok, dunia 3D voxel tetap bersih di tengah. Satu tampilan cerah, sengaja tidak ada mode gelap.
+   Token + standar modal = EZUI (disalin dari sikhsanf/ezventure/ui-kit). */
+/*__EZUI_CSS__*/
+
+html,body{margin:0;height:100%;overflow:hidden;background:var(--sky);color:var(--ink);font-family:var(--f-body);-webkit-user-select:none;user-select:none;touch-action:manipulation;overscroll-behavior:none}
+#app{position:fixed;inset:0;overflow:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+h3{font:800 15px/1.2 var(--f-display);margin:12px 0 6px}
+h3:first-child{margin-top:2px}
+button{font-family:inherit}
+
+/* ---- komponen (gaya sama dengan Ezventure) ---- */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(255,250,240,.9);border:3px solid var(--ink);border-radius:999px;font:800 16px/1 var(--f-display);white-space:nowrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.ccard{flex:1 1 74px;position:relative;padding:8px 4px;border-radius:16px;border:3px solid var(--ink);background:#fff;color:var(--ink);text-align:center;cursor:pointer;font:800 15px/1.2 var(--f-display);touch-action:manipulation;min-height:var(--tap)}
+.ccard .e{font-size:30px;display:block;line-height:1.15}
+.ccard small{display:block;font:700 12px var(--f-body);opacity:.75}
+.ccard .cb{display:block;height:7px;margin:5px 10px 0;border-radius:4px;border:2px solid var(--ink)}
+.ccard.sel{background:var(--sun);box-shadow:0 4px 0 var(--ink);transform:translateY(-2px)}
+.ccard[disabled]{opacity:.45;cursor:not-allowed}
+.logo{font:800 clamp(30px,6vmin,44px)/1 var(--f-display);letter-spacing:2px;color:var(--sun);-webkit-text-stroke:7px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+.xbtn{color:#fff;font:800 22px/1 var(--f-display)}
+.ver{margin:12px 0 0;font:700 11px var(--f-body);opacity:.55}
+#menu-note{margin:8px 0 0;font:800 14px/1.3 var(--f-body);color:var(--berry);min-height:1em}
+#scr-menu .cols>div{min-width:0}
+@media (min-width:760px) and (min-height:521px){
+  #scr-menu .panel{--pw:660px}
+  #scr-menu .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;align-items:start}
+}
+.ov.side .panel{max-width:calc(100% - 2px)}
+
+/* ---- pom bensin ---- */
+#pit-info{background:#fff;border:3px solid var(--ink);border-radius:16px;padding:8px 10px;text-align:center;margin-bottom:10px}
+#pit-info p{margin:4px 0 0;font:700 15px/1.3 var(--f-body)}
+.flags{font-size:clamp(26px,6vmin,40px);line-height:1.15;word-break:break-all}
+.bignum{font:800 clamp(40px,9vmin,64px)/1 var(--f-display);color:var(--dusk)}
+#pit-tank{display:flex;gap:6px;justify-content:center;margin:6px 0}
+.slot{flex:1;max-width:46px;aspect-ratio:1/1.25;border-radius:8px;border:3px solid var(--ink);background:#fff;color:rgba(43,35,80,.35);font:800 16px var(--f-display);cursor:pointer;padding:0;touch-action:manipulation}
+.slot.full{background:linear-gradient(#ffe892,#ffc83a 55%,#f0a820);color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.pm{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0}
+.pm .pill{width:64px;height:64px;min-width:0;padding:0;font-size:36px}
+#pit-count{font:800 clamp(44px,10vmin,72px)/1 var(--f-display);min-width:1.4em;text-align:center}
+.sum{margin:4px 0 0;text-align:center;font:800 16px/1.3 var(--f-display)}
+.sum.wallet{font-weight:600;opacity:.85}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+/* ---- HUD (zona: kiri-atas status, tengah-atas progres, kanan-atas koin + ikon sistem, bawah kontrol) ---- */
+#hud{position:absolute;inset:0;z-index:10;pointer-events:none;display:none}
+#hud.on{display:block}
+.hrow{position:absolute;display:flex;align-items:flex-start;gap:8px;top:calc(var(--mg) + var(--st));left:calc(var(--mg) + var(--sl));right:calc(var(--mg) + var(--sr) + 2*var(--tap) + 16px)}
+.hstack{display:flex;flex-direction:column;gap:6px;align-items:flex-start;flex:none}
+.hc{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+#h-bar{position:relative;width:100%;max-width:520px;height:20px;margin-top:18px;background:rgba(255,250,240,.9);border:3px solid var(--ink);border-radius:12px}
+#h-ticks i{position:absolute;top:-21px;transform:translateX(-60%);font-style:normal;font-size:15px}
+.mk{position:absolute;top:50%;width:22px;height:22px;border:3px solid var(--ink);border-radius:50%;transform:translate(-50%,-50%)}
+#h-fuel{display:inline-flex;gap:3px;align-items:flex-end}
+.fs{width:14px;height:26px;border:2px solid var(--ink);border-radius:4px;background:#fff;position:relative;overflow:hidden}
+.fs i{position:absolute;left:0;right:0;bottom:0;height:100%;background:linear-gradient(#ffe892,#ffc83a 55%,#f0a820)}
+#h-hint{font-size:13px;padding:5px 10px;white-space:normal;text-align:center}
+#h-sw{width:18px;height:18px;border-radius:5px;border:3px solid var(--ink);flex:none}
+.ctl{pointer-events:auto;position:absolute;bottom:calc(var(--mg) + var(--sb));width:var(--btn);height:var(--btn);padding:0;border-radius:24px;background:rgba(255,250,240,.62);border:4px solid var(--ink);box-shadow:0 6px 0 var(--ink);color:var(--ink);font:800 calc(var(--btn)*.5)/1 var(--f-display);display:grid;place-items:center;touch-action:none;cursor:pointer}
+.ctl:active,.ctl.hold{transform:translateY(4px);box-shadow:0 2px 0 var(--ink);background:var(--sun)}
+#btn-left{left:calc(var(--mg) + var(--sl))}
+#btn-right{right:calc(var(--mg) + var(--sr))}
+#btn-quit{pointer-events:auto;position:absolute;bottom:calc(var(--mg) + var(--sb));left:50%;transform:translateX(-50%);min-height:42px;font-size:15px;padding:8px 14px}
+#btn-quit:active{transform:translateX(-50%) translateY(3px)}
+#sys{position:absolute;z-index:50;top:calc(var(--mg) + var(--st));right:calc(var(--mg) + var(--sr));display:flex;gap:8px}
+.ibtn{width:var(--tap);height:var(--tap);padding:0;border-radius:50%;border:3px solid var(--ink);background:var(--paper);box-shadow:0 3px 0 var(--ink);font-size:22px;line-height:1;cursor:pointer;touch-action:manipulation;display:grid;place-items:center}
+.ibtn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.ibtn.off{opacity:.5}
+#toast{position:absolute;left:50%;top:24%;transform:translateX(-50%);z-index:45;padding:8px 18px;background:var(--paper);border:4px solid var(--ink);border-radius:18px;box-shadow:0 5px 0 var(--ink);font:800 clamp(18px,4vmin,28px)/1.2 var(--f-display);opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1}
+#count{position:absolute;left:0;right:0;top:24%;z-index:45;text-align:center;font:800 clamp(90px,26vmin,220px)/1 var(--f-display);color:var(--sun);-webkit-text-stroke:12px var(--ink);paint-order:stroke fill;text-shadow:0 10px 0 var(--ink);opacity:0;pointer-events:none}
+#count.on{animation:pop .9s ease-out forwards}
+@keyframes pop{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.15);opacity:1}70%{opacity:1}100%{transform:scale(1);opacity:0}}
+
+/* ---- efek ngebut dan boost ---- */
+#fx{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .3s;overflow:hidden}
+#fx.on{opacity:1}
+#fx .vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,255,255,0) 48%,var(--glow,rgba(255,160,0,.7)) 100%);animation:vig .35s ease-in-out infinite alternate}
+@keyframes vig{from{opacity:.65}to{opacity:1}}
+#fx .lines{position:absolute;inset:-60%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,0) 0deg,rgba(255,255,255,0) 3.2deg,rgba(255,255,255,.55) 3.6deg,rgba(255,255,255,0) 4.2deg);-webkit-mask-image:radial-gradient(circle at center,transparent 22%,#000 62%);mask-image:radial-gradient(circle at center,transparent 22%,#000 62%);animation:spin 1.2s linear infinite;opacity:.55}
+@keyframes spin{to{transform:rotate(12deg)}}
+#flash{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:0}
+#flash.go{animation:flash .5s ease-out}
+@keyframes flash{0%{opacity:.6}100%{opacity:0}}
+#boosttxt{position:absolute;left:50%;top:38%;z-index:12;transform:translate(-50%,-50%);font:800 clamp(40px,12vmin,100px)/1 var(--f-display);font-style:italic;letter-spacing:4px;color:#fff;-webkit-text-stroke:10px var(--ink);paint-order:stroke fill;text-shadow:0 8px 0 var(--ink);opacity:0;pointer-events:none;white-space:nowrap}
+#boosttxt.go{animation:bst .85s ease-out}
+@keyframes bst{0%{opacity:0;transform:translate(-50%,-30%) scale(.5) skewX(-10deg)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.25) skewX(-10deg)}60%{opacity:1;transform:translate(-50%,-55%) scale(1) skewX(-10deg)}100%{opacity:0;transform:translate(-50%,-90%) scale(1) skewX(-10deg)}}
+@media (prefers-reduced-motion:reduce){#fx .lines,#fx .vig{animation:none}}
+
+/* ---- hasil ---- */
+#res-lines p{margin:6px 0;font:800 15px/1.35 var(--f-body)}
+#res-lines .good{color:#1f8a4c}#res-lines .bad{color:#c2255c}
+#res-lines table{width:100%;border-collapse:collapse;margin-top:8px;font:700 16px var(--f-body)}
+#res-lines td{padding:6px 4px;border-bottom:3px dashed rgba(43,35,80,.16)}
+#res-lines td:last-child{text-align:right;font-family:var(--f-display);font-weight:800}
+#res-lines .tot td{border-bottom:0;font:800 18px var(--f-display);color:var(--dusk)}
+@media (max-height:520px){
+  .chip{font-size:14px;padding:4px 10px}
+  .ccard .e{font-size:22px}.ccard{padding:4px 2px;font-size:13px}
+  #h-bar{margin-top:16px;height:16px}.mk{width:18px;height:18px}
+  .pm .pill{width:52px;height:52px;font-size:30px}
+  .flags{font-size:24px}.bignum{font-size:36px}
+  #h-hint{font-size:11px;padding:3px 8px}
+}
+</style>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="fx"><div class="vig"></div><div class="lines"></div></div>
+  <div id="flash"></div>
+
+  <div id="hud">
+    <div class="hrow">
+      <div class="hstack">
+        <span class="chip" id="h-pos">1/2</span>
+        <span class="chip">⛽ <span id="h-fuel"></span></span>
+      </div>
+      <div class="hc">
+        <div id="h-bar"><div id="h-ticks"></div><div class="mk" id="h-am"></div><div class="mk" id="h-pm"></div></div>
+        <div class="chip" id="h-hint"><i id="h-sw"></i><span id="h-hintx"></span></div>
+      </div>
+      <span class="chip">🪙 <b id="h-coins">0</b></span>
+    </div>
+    <button class="ctl" id="btn-left" aria-label="Kiri">◀</button>
+    <button class="pill" id="btn-quit">✕ Keluar</button>
+    <button class="ctl" id="btn-right" aria-label="Kanan">▶</button>
+  </div>
+
+  <div id="boosttxt">BOOST!</div>
+  <div id="count"></div>
+  <div id="toast"></div>
+
+  <!-- Garasi: panel samping kiri (pola "side editor" EZUI) -->
+  <div class="ov side" id="scr-menu"><div class="panel">
+    <div class="phead"><h2 class="logo">GEMBALAP</h2><div class="acts"><span class="chip">🪙 <b id="menu-coins">20</b></span></div></div>
+    <div class="pbody">
+      <div class="cols">
+        <div>
+          <h3>Pilih mobil</h3><div class="chips" id="menu-cars"></div>
+          <h3>Pilih lintasan</h3><div class="chips" id="menu-tracks"></div>
+        </div>
+        <div>
+          <h3>Kesulitan</h3><div class="chips" id="menu-diffs"></div>
+          <h3>Bantuan bensin</h3><div class="chips" id="menu-levels"></div>
+          <h3>Mode</h3>
+          <div class="chips"><button class="ccard sel"><span class="e">🤖</span>Vs Komputer</button><button class="ccard" disabled><span class="e">🌐</span>Multiplayer<small>segera hadir</small></button></div>
+          <p id="menu-note"></p>
+        </div>
+      </div>
+      <p class="ver" id="ver"></p>
+    </div>
+    <div class="pfoot"><button class="pill go" id="btn-play">Main! 🏁</button></div>
+  </div></div>
+
+  <!-- Pom bensin: dialog tengah, bottom sheet di HP portrait -->
+  <div class="ov dlg" id="scr-pit"><div class="panel md">
+    <div class="phead"><h2>⛽ Pom Bensin</h2><div class="acts"><button class="xbtn" data-for="btn-back" aria-label="Kembali">✕</button></div></div>
+    <div class="pbody">
+      <div id="pit-info"></div>
+      <div id="pit-tank"></div>
+      <div class="pm"><button class="pill" id="btn-minus" aria-label="Kurangi">−</button><div id="pit-count">0</div><button class="pill" id="btn-plus" aria-label="Tambah">+</button></div>
+      <p class="sum" id="pit-cost"></p>
+      <p class="sum wallet" id="pit-wallet"></p>
+    </div>
+    <div class="pfoot"><div class="fg"><button class="pill" id="btn-back">← Garasi</button><button class="pill" id="btn-say" aria-label="Dengarkan">🔊</button></div><button class="pill go" id="btn-pay">Bayar &amp; Jalan! 🏁</button></div>
+  </div></div>
+
+  <!-- Hasil -->
+  <div class="ov dlg" id="scr-result"><div class="panel sm">
+    <div class="phead"><h2 id="res-title"></h2><div class="acts"><button class="xbtn" data-for="btn-garage" aria-label="Tutup">✕</button></div></div>
+    <div class="pbody" id="res-lines"></div>
+    <div class="pfoot"><button class="pill" id="btn-garage">Garasi</button><button class="pill go" id="btn-again">Main lagi 🔁</button></div>
+  </div></div>
+
+  <div id="sys"><button class="ibtn" id="btn-music" aria-label="Musik">🎵</button><button class="ibtn" id="btn-mute" aria-label="Suara">🔊</button></div>
+</div>
+<script>/*__EZUI_JS__*/</script>
+<script>/*__BUNDLE__*/</script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:')addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+</body></html>
