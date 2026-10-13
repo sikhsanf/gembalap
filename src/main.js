@@ -55,7 +55,7 @@ function shade(hex, f) { const c = new THREE.Color(hex); c.multiplyScalar(f); re
 
 /* ======================= STATE & SAVE ======================= */
 const SAVE_KEY = 'balap-voxel-v1';
-const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, hs: 0, shirt: 1 }, charSet: false, owned: [true, false, false, false], buying: -1,
+const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, hs: 0, shirt: 1 }, charSet: false, name: '', owned: [true, false, false, false], buying: -1,
   cust: [{ col: 0, acc: 0, lv: 0 }, { col: 1, acc: 0, lv: 0 }, { col: 2, acc: 0, lv: 0 }, { col: 3, acc: 0, lv: 0 }], state: 'menu', fill: 0, R: null, t: 0 };
 function loadSave() {
   try {
@@ -69,6 +69,7 @@ function loadSave() {
     if (j.diff === 'easy' || j.diff === 'hard' || j.diff === 'curvy') G.diff = j.diff;
     if (j.char) G.char = { g: j.char.g === 'girl' ? 'girl' : 'boy', hat: clamp(j.char.hat | 0, 0, 5), hs: clamp(j.char.hs | 0, 0, 2), shirt: clamp(j.char.shirt | 0, 0, 5) };
     if (j.charSet === true) G.charSet = true;
+    if (typeof j.name === 'string') G.name = j.name.slice(0, 12);
     if (Array.isArray(j.owned) && j.owned.length === 4) G.owned = j.owned.map((v, i) => i === 0 || v === true);
     if (Array.isArray(j.cust) && j.cust.length === 4) G.cust = j.cust.map((c, i) => ({ col: clamp(c.col | 0, 0, 3), acc: c.acc ? 1 : 0, lv: clamp(c.lv | 0, 0, 3) }));
     if (!G.owned[G.carIdx]) G.carIdx = 0;
@@ -76,7 +77,7 @@ function loadSave() {
 }
 function save() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ coins: G.coins, carIdx: G.carIdx, trackIdx: G.trackIdx, level: G.level, mute: G.mute, musicOff: G.musicOff, diff: G.diff, char: G.char, charSet: G.charSet, owned: G.owned, cust: G.cust }));
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ coins: G.coins, carIdx: G.carIdx, trackIdx: G.trackIdx, level: G.level, mute: G.mute, musicOff: G.musicOff, diff: G.diff, char: G.char, charSet: G.charSet, name: G.name, owned: G.owned, cust: G.cust }));
   } catch (e) { /* abaikan */ }
 }
 
@@ -151,6 +152,14 @@ function tone(f, d, type = 'square', v = 0.05, f2 = 0, delay = 0) {
 const sfx = {
   coin: () => { tone(988, 0.07, 'square', 0.05); tone(1319, 0.16, 'square', 0.05, 0, 0.07); },
   tick: () => tone(520, 0.05, 'square', 0.04),
+  chime: () => { [784, 1175, 1568].forEach((f, i) => tone(f, 0.9, 'sine', 0.05, 0, i * 0.12)); },
+  title: () => {          // hantaman judul: dentuman + sapuan naik + akor
+    if (!okSfx()) return;
+    const t = A.ctx.currentTime;
+    oscHit('sine', 120, 38, t, 0.5, 0.45, A.sfx, 0.002);
+    noiseHit(t, 0.9, 'bandpass', 400, 5000, 0.22, 1, A.sfx);
+    [523, 659, 784, 1047].forEach((f) => oscHit('square', f, f, t + 0.02, 0.7, 0.045, A.sfx, 0.01));
+  },
   bump: () => { if (!okSfx()) return; const t = A.ctx.currentTime; oscHit('sine', 150, 45, t, 0.2, 0.3, A.sfx, 0.002); noiseHit(t, 0.12, 'bandpass', 700, 200, 0.2, 1, A.sfx); },
   fuel: () => { tone(523, 0.08, 'square', 0.05); tone(659, 0.08, 'square', 0.05, 0, 0.08); tone(784, 0.08, 'square', 0.05, 0, 0.16); tone(1047, 0.2, 'square', 0.05, 0, 0.24); },
   beep: () => tone(440, 0.15, 'square', 0.07),
@@ -794,6 +803,7 @@ function showScreen(name) {
   Object.entries(SCREEN_IDS).forEach(([k, id]) => EZUI.show(id, k === name));
   $('#hud').classList.toggle('on', name === 'hud');
   $('#btn-set').hidden = name === 'hud';
+  $('#sys').hidden = name === 'none';
   EZUI.hide('scr-set');
 }
 let toastTimer = 0;
@@ -874,6 +884,7 @@ let _menuCard = (sel, i, e, label, small, cls = '') =>
   `<button class="ccard ${cls} ${sel ? 'sel' : ''}" data-i="${i}"><span class="e">${e}</span>${label}${small ? `<small>${small}</small>` : ''}</button>`;
 function renderMenu() {
   $('#menu-coins').textContent = G.coins;
+  $('#home-title').textContent = 'Selamat datang, ' + (G.name || 'Pembalap') + '!';
   const card = _menuCard;
   $('#menu-cars').innerHTML = CARS.map((c, i) => {
     const cu = G.cust[i], icon = carSvg(i, cu.col, cu.acc, cu.lv);
@@ -1431,6 +1442,8 @@ function update(dt) {
       camera.position.set(rp.X + Math.sin(ang) * 11, 4.2, rp.Z + Math.cos(ang) * 11);
       camera.lookAt(rp.X, 1.2, rp.Z);
     }
+  } else if (G.state === 'intro') {
+    updateIntro(dt);
   } else {
     updatePreview(dt);
   }
@@ -1453,7 +1466,11 @@ function goMenu() {
 function setupPreview() { buildWorld(G.trackIdx, previewLayout(), G.diff); mountPreview(); }
 function goDiff() { G.state = 'pick'; clearOverlays(); setMusic('menu'); renderMenu(); showScreen('diff'); }
 function goTrack() { G.state = 'pick'; renderMenu(); showScreen('track'); }
-function goHero() { G.state = 'hero'; setMusic('menu'); setupPreview(); renderMenu(); renderCustom(); showScreen('hero'); }
+function goHero() {
+  G.state = 'hero'; setMusic('menu'); setupPreview(); renderMenu(); renderCustom();
+  $('#hero-name').value = G.name; $('#hero-g').classList.toggle('locked', G.charSet);     // gender hanya dipilih sekali
+  showScreen('hero');
+}
 function goWardrobe() { G.state = 'wardrobe'; setMusic('menu'); G.buying = -1; setupPreview(); renderCustom(); showScreen('wardrobe'); }
 function goCustom() {
   G.state = 'custom'; G.buying = -1;
@@ -1509,7 +1526,10 @@ onCu('#cu-acc', (v) => { G.cust[G.carIdx].acc = +v ? 1 : 0; });
 onCu('#cu-lv', (v) => { G.cust[G.carIdx].lv = clamp(+v, 0, 3); });
 $('#btn-cu-ok').addEventListener('click', () => { sfx.beep(); goMenu(); });
 $('#btn-wd-ok').addEventListener('click', () => { sfx.beep(); goMenu(); });
-$('#btn-hero-ok').addEventListener('click', () => { G.charSet = true; save(); sfx.beep(); goMenu(); });
+$('#btn-hero-ok').addEventListener('click', () => {
+  G.name = ($('#hero-name').value || '').trim().slice(0, 12) || 'Pembalap'; G.charSet = true; save(); sfx.beep();
+  if (SKIP_INTRO) goMenu(); else startIntro();
+});
 $('#btn-wardrobe-open').addEventListener('click', () => { sfx.tick(); goWardrobe(); });
 $('#pit-tank').addEventListener('click', (e) => {
   const t = e.target.closest('[data-i]'); if (!t) return;
@@ -1596,8 +1616,63 @@ syncSys();
   const bm = document.querySelector('meta[name=gembalap-build]');
   $('#ver').textContent = 'Gembalap v0.3 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
 }
+/* ======================= PEMBUKA ======================= */
+const SKIP_INTRO = /skipintro/.test(location.search + location.hash);
+let introTimers = [];
+const later = (fn, ms) => { introTimers.push(setTimeout(fn, ms)); };
+function runSplash(done) {            // putih → "presented by Learnersfam" → putih
+  const sp = $('#splash'), inn = sp.firstElementChild;
+  audioInit();                                   // dicoba lebih awal (di aplikasi terpasang biasanya diizinkan)
+  later(() => { inn.classList.add('on'); sfx.chime(); }, 400);
+  later(() => inn.classList.remove('on'), 2600);
+  later(() => { sp.classList.add('hide'); done(); }, 3700);
+  later(() => sp.classList.add('gone'), 4800);
+}
+function startIntro() {               // animasi balapan → judul → "Selamat datang"
+  G.state = 'intro'; G.introT = 0;
+  clearOverlays(); showScreen('none');
+  setupPreview();
+  $('#fx').style.setProperty('--glow', COLORS[G.cust[G.carIdx].col].css + 'cc'); boostFx(true);
+  const tc = $('#titlecard'); tc.className = '';
+  const wo = $('#whiteout'); wo.classList.remove('on');
+  audioInit(); setMusic('race'); A.boostTarget = 0.8;
+  [500, 1300, 2000, 2900].forEach((ms) => later(() => sfx.swoosh(), ms));
+  later(() => { tc.className = 'show'; sfx.title(); }, 2300);
+  later(() => { tc.className = 'out'; }, 5200);
+  later(finishIntro, 5700);
+}
+function finishIntro() {
+  if (G.state !== 'intro') return;
+  introTimers.forEach(clearTimeout); introTimers = [];
+  const wo = $('#whiteout'); wo.classList.add('on');
+  later(() => {
+    $('#titlecard').className = '';
+    boostFx(false); A.boostTarget = 0; engineUpdate(0, false, false);
+    goMenu();
+    wo.classList.remove('on');
+  }, 480);
+}
+function updateIntro(dt) {
+  G.introT += dt;
+  const t = G.introT, sp = [27, 26, 25], s0 = [14, 8, 0], lx = [LANE_X[1], LANE_X[2], LANE_X[0]];
+  [CAR.p, CAR.a, CAR.b].forEach((o, i) => {
+    if (!o) return;
+    const x = lx[i] + Math.sin(t * 1.4 + i * 2) * 0.9;
+    placeCar(o, x, s0[i] + t * sp[i], -Math.cos(t * 1.4 + i * 2) * 0.08, Math.sin(t * 18 + i) * 0.04);
+  });
+  engineUpdate(sp[0], false, true);
+  const c = roadXZ(s0[0] + t * sp[0], lx[0], _xz), ang = 0.25 + t * 0.4, r = 12.5;
+  camera.position.set(c.X + Math.sin(ang) * r, 4.2 + Math.sin(t * 0.8) * 0.5, c.Z + Math.cos(ang) * r);
+  camera.lookAt(c.X, 1.3, c.Z - 3);
+  const fov = 62 + 6 * Math.sin(t * 1.1); if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = fov; camera.updateProjectionMatrix(); }
+}
+// ketuk = lewati, kecuali ketukan pertama yang baru membuka suara
+addEventListener('pointerdown', () => { if (G.state === 'intro' && G.introT > 0.8 && A.ctx && A.ctx.state === 'running') finishIntro(); }, true);
+
 resize();
-if (G.charSet) goMenu(); else goHero();
+G.state = 'boot'; showScreen('none'); setupPreview();
+const afterSplash = () => { if (!G.charSet || !G.name) goHero(); else startIntro(); };
+if (SKIP_INTRO) { $('#splash').classList.add('gone'); if (!G.charSet || !G.name) goHero(); else goMenu(); } else runSplash(afterSplash);
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -1608,4 +1683,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // untuk pengujian / debug
-window.__balap = { collide, ROAD, curvAt, roadXZ, goCustom, G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };
+window.__balap = { startIntro, finishIntro, collide, ROAD, curvAt, roadXZ, goCustom, G, A, IN, update, steer, press, prepareRace, startRace, goPit, goMenu, pitSet, padUnder, nextPad, audioTest, SEG, LANE_X, TRACKS, PAD_W };

@@ -136,6 +136,29 @@ button{font-family:inherit}
 @media (max-width:760px) and (orientation:portrait){#toast{top:36%}#count{top:30%}#boosttxt{top:44%}}
 .fs{width:12px;height:24px}
 
+/* ---- pembuka ---- */
+#splash{position:absolute;inset:0;z-index:200;background:#fff;display:grid;place-items:center;opacity:1;transition:opacity 1s ease}
+#splash.hide{opacity:0;pointer-events:none}
+#splash.gone{display:none}
+.sp-in{text-align:center;opacity:0;transition:opacity 1s ease;color:var(--ink)}
+.sp-in.on{opacity:1}
+.sp-in small{display:block;font:700 clamp(14px,3.2vmin,22px) var(--f-body);letter-spacing:.35em;text-transform:uppercase;opacity:.65;margin-bottom:8px}
+.sp-in b{display:block;font:800 clamp(40px,11vmin,92px)/1 var(--f-display);background:linear-gradient(90deg,var(--berry),var(--sun),var(--leaf),var(--sea),var(--dusk));-webkit-background-clip:text;background-clip:text;color:transparent}
+#whiteout{position:absolute;inset:0;z-index:150;background:#fff;opacity:0;pointer-events:none;transition:opacity .45s ease}
+#whiteout.on{opacity:1}
+#titlecard{position:absolute;inset:0;z-index:60;display:grid;place-items:center;pointer-events:none;opacity:0}
+#titlecard .tt{font:800 clamp(44px,15vmin,150px)/1 var(--f-display);letter-spacing:.06em;color:var(--sun);-webkit-text-stroke:clamp(8px,2.4vmin,22px) var(--ink);paint-order:stroke fill;text-shadow:0 .08em 0 var(--ink)}
+#titlecard.show{animation:tpop .7s cubic-bezier(.2,1.4,.4,1) forwards}
+#titlecard.out{animation:tout .5s ease forwards}
+@keyframes tpop{0%{opacity:0;transform:scale(.3) rotate(-8deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes tout{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.15)}}
+#scr-menu.show .panel{animation:rise .6s ease-out}
+@keyframes rise{0%{opacity:0;transform:translateY(24px)}100%{opacity:1;transform:none}}
+#home-title{font-size:clamp(22px,4.4vmin,30px);line-height:1.15}
+.nameinp{width:100%;font:800 22px var(--f-display);padding:12px 16px;border:3px solid var(--ink);border-radius:16px;background:#fff;color:var(--ink);box-shadow:0 3px 0 var(--ink);outline:none}
+.nameinp:focus{border-color:var(--dusk)}
+#hero-g.locked{display:none}
+
 /* ---- hasil ---- */
 #res-lines p{margin:6px 0;font:800 15px/1.35 var(--f-body)}
 #res-lines .good{color:#1f8a4c}#res-lines .bad{color:#c2255c}
@@ -181,7 +204,7 @@ button{font-family:inherit}
 
   <!-- Beranda: menu utama -->
   <div class="ov side" id="scr-menu"><div class="panel">
-    <div class="phead"><h2 class="logo">GEMBALAP</h2><div class="acts"><span class="chip">🪙 <b id="menu-coins">20</b></span></div></div>
+    <div class="phead"><h2 id="home-title">Selamat datang!</h2><div class="acts"><span class="chip">🪙 <b id="menu-coins">20</b></span></div></div>
     <div class="pbody home">
       <button class="pill go big" id="btn-race">🏁 Balapan</button>
       <button class="pill big" id="btn-garage-open">🔧 Garage</button>
@@ -236,7 +259,7 @@ button{font-family:inherit}
   <!-- Awal main: pilih pembalap (sekali saja) -->
   <div class="ov side" id="scr-hero"><div class="panel">
     <div class="phead"><h2>Siapa kamu?</h2></div>
-    <div class="pbody"><div class="chips pick" id="cu-g"></div></div>
+    <div class="pbody"><h3>Namaku</h3><input id="hero-name" class="nameinp" maxlength="12" placeholder="Nama kamu" autocomplete="off" autocapitalize="words" spellcheck="false"><div id="hero-g"><h3>Aku</h3><div class="chips pick" id="cu-g"></div></div></div>
     <div class="pfoot"><button class="pill go" id="btn-hero-ok">Mulai! ✓</button></div>
   </div></div>
 
@@ -271,6 +294,11 @@ button{font-family:inherit}
     </div>
     <div class="pfoot"><button class="pill go" id="btn-set-close">Selesai</button></div>
   </div></div>
+
+  <!-- Pembuka: presented by + kartu judul -->
+  <div id="titlecard"><div class="tt">GEMBALAP</div></div>
+  <div id="whiteout"></div>
+  <div id="splash"><div class="sp-in"><small>presented by</small><b>Learnersfam</b></div></div>
 
   <div id="sys"><button class="ibtn" id="btn-set" aria-label="Pengaturan">⚙️</button><button class="ibtn" id="btn-music" aria-label="Musik">🎵</button><button class="ibtn" id="btn-mute" aria-label="Suara">🔊</button></div>
 </div>
