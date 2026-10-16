@@ -1,6 +1,6 @@
 # 🏎️ Gembalap
 
-Game balapan bergaya voxel untuk dimainkan bareng anak. Isi bensin sesuai jumlah bendera, cocokkan warna mobil dengan warna jalur, lalu menang lawan komputer!
+Game balapan pseudo-3D bergaya pixel (ala OutRun) untuk dimainkan bareng anak. Isi bensin sesuai jumlah bendera, cocokkan warna mobil dengan warna jalur, lalu menang lawan komputer! Dikunci landscape.
 
 ## Cara main
 1. **Garasi** — pilih mobil, lintasan, kesulitan, dan bantuan bensin.
@@ -28,3 +28,9 @@ npm run build      # menghasilkan dist/index.html (+ version.json)
 `index.html` di root adalah hasil build (untuk GitHub Pages). Sumber ada di `src/main.js` + `template.html`. UI memakai EZUI dari Ezventure (`ui-kit/`).
 
 Roadmap: v0.3 multiplayer (PeerJS), APK.
+
+## v0.4 — gaya pixel pseudo-3D
+- Mesin gambar diganti: kanvas 2D beresolusi rendah (tinggi 180 px) diperbesar tanpa penghalusan, jalan digambar per baris, semua benda adalah sprite piksel (mobil tampak belakang, pohon, rumah, gedung, bendera, gerbang finish).
+- Three.js dihapus; ukuran file turun dari ~600 KB menjadi ~85 KB.
+- Logika game, musik, menu, hujan, tabrakan, dan bensin tidak berubah.
+- Versi 3D voxel terakhir ada di tag `v0.3.1-3d`.
