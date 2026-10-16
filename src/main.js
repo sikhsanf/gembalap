@@ -7,7 +7,6 @@ const FUEL_PRICE = 2, TANK_MAX = 10, START_COINS = 20, MIN_COINS = 10;
 const ROAD_HALF = 5.6, STEER_SPEED = 9, AI_STEER = 6.5, PAD_W = 3.6, PAD_LEN = 24, LINGER = 0.7;
 const BONUS_PLACE = [10, 4, 1], BONUS_EXACT = 5;
 const DRIFT = 18;                // dorongan ke luar saat tikungan (mode Sulit)
-const CAR_PRICE = [0, 30, 40, 50];
 
 const COLORS = [
   { name: 'Merah',  hex: 0xe53935, css: '#e53935' },
@@ -15,19 +14,28 @@ const COLORS = [
   { name: 'Kuning', hex: 0xfdd835, css: '#fdd835' },
   { name: 'Hijau',  hex: 0x43a047, css: '#43a047' },
 ];
-// index mobil == index warna
-const CARS = [
-  { short: 'Sport', name: 'Mobil Sport',  emoji: '🏎️' },
-  { short: 'Polisi', name: 'Mobil Polisi', emoji: '🚓' },
-  { short: 'Taksi', name: 'Taksi',        emoji: '🚕' },
-  { short: 'Jip', name: 'Jip Hijau',    emoji: '🚙' },
+// gokart: hanya beda tampilan (adil untuk semua). Tiap model punya ban, knalpot, jok, bemper, dan nomor sendiri.
+const KARTS = [
+  { name: 'Kancil',  price: 0,   tw: 5, th: 12, rim: 0xcfd8dc, bar: 0, exh: 1, seat: 0, pod: 0, plate: 0xffffff, acc: 0 },
+  { name: 'Kelinci', price: 20,  tw: 5, th: 12, rim: 0xfdd835, bar: 1, exh: 2, seat: 1, pod: 0, plate: 0xffe082, acc: 1 },
+  { name: 'Elang',   price: 30,  tw: 6, th: 13, rim: 0x29b6f6, bar: 1, exh: 1, seat: 2, pod: 1, plate: 0xffffff, acc: 2 },
+  { name: 'Harimau', price: 40,  tw: 6, th: 13, rim: 0xff9800, bar: 2, exh: 2, seat: 1, pod: 1, plate: 0xffcc80, acc: 3 },
+  { name: 'Citah',   price: 50,  tw: 6, th: 12, rim: 0xffeb3b, bar: 0, exh: 2, seat: 2, pod: 2, plate: 0xffffff, acc: 0 },
+  { name: 'Banteng', price: 65,  tw: 7, th: 14, rim: 0xef5350, bar: 2, exh: 1, seat: 0, pod: 1, plate: 0xffab91, acc: 1 },
+  { name: 'Hiu',     price: 80,  tw: 6, th: 13, rim: 0x90caf9, bar: 1, exh: 0, seat: 2, pod: 2, plate: 0xb3e5fc, acc: 2 },
+  { name: 'Naga',    price: 100, tw: 7, th: 14, rim: 0x66bb6a, bar: 2, exh: 2, seat: 1, pod: 2, plate: 0xc5e1a5, acc: 3 },
+  { name: 'Roket',   price: 125, tw: 7, th: 13, rim: 0xffffff, bar: 1, exh: 3, seat: 2, pod: 2, plate: 0xfff59d, acc: 0 },
+  { name: 'Petir',   price: 150, tw: 7, th: 15, rim: 0xffd600, bar: 2, exh: 3, seat: 2, pod: 2, plate: 0xfff176, acc: 1 },
 ];
+const CARS = KARTS, CAR_PRICE = KARTS.map((k) => k.price), NK = KARTS.length;
 const SHIRTS = [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xff6fa8, 0x8e44ff];
-const ACC_ICON = ['🏁', '🚨', '🪧', '💡'];
-const TRACKS = [
-  { name: 'Desa',   emoji: '🌾', len: 'Pendek', flags: 4, sky: 0x9ad8ff, ground: 0x6dbf4b, theme: 'desa' },
-  { name: 'Pantai', emoji: '🏖️', len: 'Sedang', flags: 6, sky: 0x8fe0ff, ground: 0xf0d9a0, theme: 'pantai' },
-  { name: 'Kota',   emoji: '🏙️', len: 'Panjang', flags: 9, sky: 0xb7d3ee, ground: 0x8d9399, theme: 'kota' },
+const ACC_ICON = ['🏁', '🚩', '💡', '🛡️'];       // sayap, bendera, lampu, bemper (tiap model gokart punya satu)
+const TRACKS = [   // sirkuit sungguhan, dari yang pendek ke panjang; "curve" = bentuk tikungan khas (dipakai di mode Sulit)
+  { name: 'Sentul',    emoji: '🇮🇩', len: 'Pendek',  flags: 4, sky: 0x9ad8ff, ground: 0x5faa43, theme: 'sentul',    run: 0xbdb8a6, wall: [0xe53935, 0xffffff], stand: 2, curve: { a1: 0.30, k1: 66, p1: 0.4, a2: 0.10, k2: 30, p2: 1.3 } },
+  { name: 'Suzuka',    emoji: '🇯🇵', len: 'Pendek',  flags: 5, sky: 0xa9def7, ground: 0x6cae56, theme: 'suzuka',    run: 0xc9bfa8, wall: [0xe53935, 0xffffff], stand: 0, curve: { a1: 0.26, k1: 38, p1: 1.0, a2: 0.18, k2: 92, p2: 0.2 } },
+  { name: 'Sepang',    emoji: '🇲🇾', len: 'Sedang',  flags: 6, sky: 0x8ad8ff, ground: 0x4fa83a, theme: 'sepang',    run: 0xc0c0c0, wall: [0x1e88e5, 0xffffff], stand: 1, curve: { a1: 0.32, k1: 54, p1: 0, a2: 0.14, k2: 24, p2: 2.0 } },
+  { name: 'Monza',     emoji: '🇮🇹', len: 'Sedang',  flags: 7, sky: 0xb7d3ee, ground: 0x4f8f3f, theme: 'monza',     run: 0xc7b99a, wall: [0x43a047, 0xffffff], stand: 3, curve: { a1: 0.34, k1: 60, p1: 0.8, a2: 0.12, k2: 25, p2: 0.5, g: 85 } },
+  { name: 'Mandalika', emoji: '🇮🇩', len: 'Panjang', flags: 9, sky: 0x8fe0ff, ground: 0xd9c48f, theme: 'mandalika', run: 0xeadfb9, wall: [0xe53935, 0xffffff], stand: 0, sea: true, curve: { a1: 0.30, k1: 72, p1: 0.2, a2: 0.15, k2: 34, p2: 1.6 } },
 ];
 const NUM_WORDS = ['nol', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh'];
 
@@ -52,8 +60,8 @@ function shuffle(arr, rng) {
 
 /* ======================= STATE & SAVE ======================= */
 const SAVE_KEY = 'balap-voxel-v1';
-const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, hs: 0, shirt: 1 }, charSet: false, name: '', owned: [true, false, false, false], buying: -1,
-  cust: [{ col: 0, acc: 0, lv: 0 }, { col: 1, acc: 0, lv: 0 }, { col: 2, acc: 0, lv: 0 }, { col: 3, acc: 0, lv: 0 }], state: 'menu', fill: 0, R: null, t: 0 };
+const G = { coins: START_COINS, carIdx: 0, trackIdx: 0, level: 1, mute: false, musicOff: false, diff: 'easy', char: { g: 'boy', hat: 0, hs: 0, shirt: 1 }, charSet: false, name: '', owned: KARTS.map((_, i) => i === 0), buying: -1,
+  cust: KARTS.map((_, i) => ({ col: i % 4, acc: 0, lv: 0 })), state: 'menu', fill: 0, R: null, t: 0 };
 function loadSave() {
   try {
     const j = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
@@ -67,8 +75,8 @@ function loadSave() {
     if (j.char) G.char = { g: j.char.g === 'girl' ? 'girl' : 'boy', hat: clamp(j.char.hat | 0, 0, 5), hs: clamp(j.char.hs | 0, 0, 2), shirt: clamp(j.char.shirt | 0, 0, 5) };
     if (j.charSet === true) G.charSet = true;
     if (typeof j.name === 'string') G.name = j.name.slice(0, 12);
-    if (Array.isArray(j.owned) && j.owned.length === 4) G.owned = j.owned.map((v, i) => i === 0 || v === true);
-    if (Array.isArray(j.cust) && j.cust.length === 4) G.cust = j.cust.map((c, i) => ({ col: clamp(c.col | 0, 0, 3), acc: c.acc ? 1 : 0, lv: clamp(c.lv | 0, 0, 3) }));
+    if (Array.isArray(j.owned)) G.owned = G.owned.map((d, i) => i === 0 || j.owned[i] === true);       // simpanan lama (4 mobil) tetap terbaca
+    if (Array.isArray(j.cust)) G.cust = G.cust.map((d, i) => { const c = j.cust[i]; return c ? { col: clamp(c.col | 0, 0, 3), acc: c.acc ? 1 : 0, lv: clamp(c.lv | 0, 0, 3) } : d; });
     if (!G.owned[G.carIdx]) G.carIdx = 0;
   } catch (e) { /* abaikan */ }
 }
@@ -318,19 +326,20 @@ async function audioTest(mode, boostI, secs) {
 /* ======================= JALAN BERBELOK (mode Sulit) ======================= */
 const ROAD = { on: false, n: 0, cx: null, psi: null, off: 60 };
 const sm01 = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-function headingAt(s, len) {
+function headingAt(s, len, pf) {
   if (s <= 0 || s >= len) return 0;
   const env = sm01((s - 40) / 70) * (1 - sm01((s - (len - 140)) / 70));
-  return env * (0.34 * Math.sin(s / 58 + 0.4) + 0.16 * Math.sin(s / 27 + 1.3));
+  const g = pf.g ? clamp(0.5 + 1.3 * Math.sin(s / pf.g), 0, 1) : 1;           // Monza: ada lintasan lurus panjang
+  return env * g * (pf.a1 * Math.sin(s / pf.k1 + pf.p1) + pf.a2 * Math.sin(s / pf.k2 + pf.p2));
 }
-function buildRoad(len, on) {
+function buildRoad(len, on, pf) {
   ROAD.on = on;
   if (!on) return;
   const n = Math.ceil(len) + 320;
   ROAD.n = n; ROAD.cx = new Float32Array(n); ROAD.psi = new Float32Array(n);
   let x = 0;
   for (let i = 0; i < n; i++) {
-    const p = headingAt(i - ROAD.off, len);
+    const p = headingAt(i - ROAD.off, len, pf);
     ROAD.psi[i] = p; ROAD.cx[i] = x; x += Math.tan(p);
   }
 }
@@ -380,6 +389,7 @@ const FONT = {
   'F': ['111', '100', '110', '100', '100'], 'I': ['111', '010', '010', '010', '111'],
   'N': ['101', '111', '111', '111', '101'], 'S': ['111', '100', '111', '001', '111'],
   'H': ['101', '101', '111', '101', '101'],
+  'P': ['111', '101', '111', '100', '100'], 'T': ['111', '010', '010', '010', '010'], 'O': ['111', '101', '101', '101', '111'], ' ': ['000', '000', '000', '000', '000'],
 };
 function pxText(g, str, x, y, cell, color) {
   [...str].forEach((ch, ci) => {
@@ -390,61 +400,44 @@ function pxText(g, str, x, y, cell, color) {
 
 /* ---------- sprite mobil (tampak belakang, 32x28, dasar roda di bawah) ---------- */
 const DARK = 0x263238, GLASS = 0x9fd8f5, TAIL = 0xff1744;
-const GLASSY = [[10, 16], [7, 13], [8, 14], [6, 12]];      // atas & bawah kaca tiap model (untuk posisi pengemudi)
-function drawDriverPx(g, ch, gy0, gy1) {
-  const hc = SHIRTS[ch.hat], st = (hc === 0xfdd835 || hc === 0xff6fa8) ? 0x263238 : 0xffffff, sh = SHIRTS[ch.shirt];
-  rc(g, sh, 11, gy1 - 3, 10, 3);
-  if (ch.g === 'girl') rc(g, 0x5d3a1a, 12, gy1 - 6, 8, 4);
-  rc(g, hc, 13, gy0 - 1, 6, 5);
-  rc(g, shade(hc, 0.72), 13, gy0 + 3, 6, 1);
-  if (ch.hs === 1) rc(g, st, 15, gy0 - 1, 2, 4);
-  else if (ch.hs === 2) { rc(g, st, 13, gy0 + 1, 1, 2); rc(g, st, 18, gy0 + 1, 1, 2); }
-}
-function drawCarPx(g, sp) {
-  const hex = COLORS[sp.c].hex, dk = shade(hex, 0.7), hl = shade(hex, 1.25), t = sp.m;
-  const wheels = (y, w) => { rc(g, DARK, 2, y, w, 28 - y); rc(g, DARK, 30 - w, y, w, 28 - y); rc(g, 0x455a64, 3, y + 1, 1, 3); rc(g, 0x455a64, 29 - w + 1, y + 1, 1, 3); };
-  const plate = (y) => { rc(g, 0xffffff, 13, y, 6, 3); rc(g, 0x333333, 14, y + 1, 4, 1); };
-  const lights = (y, w, h) => { rc(g, TAIL, 4, y, w, h); rc(g, TAIL, 28 - w, y, w, h); rc(g, 0xff8a80, 5, y, 2, 1); rc(g, 0xff8a80, 27 - 2, y, 2, 1); };
-  if (t === 0) {
-    wheels(19, 5);
-    rc(g, hex, 3, 15, 26, 10); rc(g, hl, 4, 15, 24, 1); rc(g, dk, 3, 23, 26, 2); rc(g, 0x1b2428, 7, 25, 18, 3);
-    rc(g, hex, 8, 8, 16, 8); rc(g, hl, 9, 8, 14, 1); rc(g, GLASS, 10, 10, 12, 6); rc(g, 0xc9ecfb, 10, 10, 3, 1);
-    lights(17, 7, 3); plate(21);
-    if (sp.lv === 1) { [13, 17].forEach((x) => { rc(g, 0xffffff, x, 8, 2, 2); rc(g, 0xffffff, x, 15, 2, 8); }); }
-    else if (sp.lv === 2) { for (let i = 0; i < 7; i++) for (let r = 0; r < 2; r++) rc(g, (i + r) % 2 ? 0x111111 : 0xffffff, 9 + i * 2, 15 + r * 2, 2, 2); }
-    else if (sp.lv === 3) { [3, 24].forEach((x) => { rc(g, 0xff9800, x, 19, 5, 5); rc(g, 0xff9800, x + (x < 10 ? 0 : 2), 17, 3, 3); rc(g, 0xffeb3b, x + (x < 10 ? 0 : 2), 21, 3, 3); }); }
-    if (sp.acc) { rc(g, DARK, 8, 12, 2, 4); rc(g, DARK, 22, 12, 2, 4); rc(g, dk, 2, 11, 28, 3); rc(g, hl, 2, 11, 28, 1); }
-  } else if (t === 1) {
-    wheels(19, 5);
-    rc(g, hex, 3, 16, 26, 9); rc(g, 0xffffff, 3, 14, 26, 2); rc(g, dk, 3, 23, 26, 2); rc(g, 0x1b2428, 7, 25, 18, 3);
-    rc(g, 0xffffff, 7, 5, 18, 9); rc(g, GLASS, 9, 7, 14, 6); rc(g, 0xc9ecfb, 9, 7, 3, 1);
-    lights(18, 6, 3); plate(21);
-    if (sp.lv === 1) { [13, 17].forEach((x) => { rc(g, hex, x, 5, 2, 2); rc(g, 0xffffff, x, 16, 2, 7); }); }
-    else if (sp.lv === 2) { for (let i = 0; i < 7; i++) for (let r = 0; r < 2; r++) rc(g, (i + r) % 2 ? 0x111111 : 0xffffff, 9 + i * 2, 16 + r * 2, 2, 2); }
-    else if (sp.lv === 3) { [3, 24].forEach((x) => { rc(g, 0xff9800, x, 19, 5, 5); rc(g, 0xffeb3b, x + (x < 10 ? 0 : 2), 21, 3, 3); }); }
-    if (sp.acc) { rc(g, DARK, 9, 4, 14, 1); rc(g, 0xff1744, 9, 1, 6, 3); rc(g, 0x2979ff, 17, 1, 6, 3); rc(g, 0xffffff, 10, 1, 2, 1); rc(g, 0xffffff, 18, 1, 2, 1); }
-  } else if (t === 2) {
-    wheels(19, 5);
-    rc(g, hex, 3, 16, 26, 9); rc(g, dk, 3, 23, 26, 2); rc(g, 0x1b2428, 7, 25, 18, 3);
-    for (let i = 0; i < 13; i++) rc(g, i % 2 ? DARK : 0xffffff, 3 + i * 2, 19, 2, 1);
-    rc(g, hex, 7, 6, 18, 10); rc(g, hl, 8, 6, 16, 1); rc(g, GLASS, 9, 8, 14, 6); rc(g, 0xc9ecfb, 9, 8, 3, 1);
-    lights(17, 6, 2); plate(21);
-    if (sp.lv === 1) { [13, 17].forEach((x) => { rc(g, 0xffffff, x, 6, 2, 2); rc(g, 0xffffff, x, 15, 2, 4); }); }
-    else if (sp.lv === 2) { for (let i = 0; i < 7; i++) rc(g, i % 2 ? 0x111111 : 0xffffff, 9 + i * 2, 15, 2, 2); }
-    else if (sp.lv === 3) { [3, 24].forEach((x) => { rc(g, 0xff9800, x, 20, 5, 4); rc(g, 0xffeb3b, x + (x < 10 ? 0 : 2), 21, 3, 3); }); }
-    if (sp.acc) { rc(g, DARK, 12, 2, 8, 4); rc(g, 0xffffff, 13, 3, 6, 2); rc(g, 0xfdd835, 15, 3, 2, 2); }
-  } else {
-    wheels(18, 6);
-    rc(g, hex, 3, 13, 26, 12); rc(g, dk, 3, 23, 26, 2); rc(g, DARK, 3, 24, 26, 2);
-    rc(g, hex, 6, 4, 20, 9); rc(g, dk, 6, 4, 20, 2); rc(g, GLASS, 8, 6, 16, 6); rc(g, 0xc9ecfb, 8, 6, 3, 1);
-    rc(g, DARK, 12, 14, 8, 8); rc(g, 0x546e7a, 14, 16, 4, 4);
-    rc(g, TAIL, 4, 15, 3, 4); rc(g, TAIL, 25, 15, 3, 4);
-    if (sp.lv === 1) { [13, 17].forEach((x) => { rc(g, 0xffffff, x, 13, 2, 1); rc(g, 0xffffff, x, 22, 2, 2); }); rc(g, 0xffffff, 9, 14, 2, 8); rc(g, 0xffffff, 21, 14, 2, 8); }
-    else if (sp.lv === 2) { for (let i = 0; i < 4; i++) for (let r = 0; r < 2; r++) { rc(g, (i + r) % 2 ? 0x111111 : 0xffffff, 8 + i * 2, 13 + r * 2, 2, 2); rc(g, (i + r) % 2 ? 0x111111 : 0xffffff, 18 + i * 2, 13 + r * 2, 2, 2); } }
-    else if (sp.lv === 3) { [3, 24].forEach((x) => { rc(g, 0xff9800, x, 19, 5, 5); rc(g, 0xffeb3b, x + (x < 10 ? 0 : 2), 21, 3, 3); }); }
-    if (sp.acc) { rc(g, DARK, 6, 2, 20, 2); [8, 14, 20].forEach((x) => rc(g, 0xfff176, x, 0, 4, 2)); }
+function drawCarPx(g, sp) {               // gokart tampak belakang (32x28)
+  const K = KARTS[sp.m], hex = COLORS[sp.c].hex, dk = shade(hex, 0.72), hl = shade(hex, 1.25), tw = K.tw, th = K.th;
+  const ch = sp.drv || { g: 'boy', hat: 0, hs: 0, shirt: 1 };
+  const hc = SHIRTS[ch.hat], hst = (hc === 0xfdd835 || hc === 0xff6fa8) ? 0x263238 : 0xffffff, sh = SHIRTS[ch.shirt];
+  [0, 32 - tw].forEach((x, i) => {                                           // ban belakang
+    rc(g, 0x1b1f22, x, 28 - th, tw, th); rc(g, 0x37474f, i ? x + tw - 1 : x, 28 - th, 1, th);
+    rc(g, K.rim, x + Math.floor(tw / 2) - 1, 28 - th + 3, 2, th - 6);
+  });
+  rc(g, 0x546e7a, tw, 22, 32 - 2 * tw, 2);                                    // as roda
+  rc(g, hex, tw + 1, 17, 30 - 2 * tw, 7); rc(g, hl, tw + 1, 17, 30 - 2 * tw, 1); rc(g, dk, tw + 1, 22, 30 - 2 * tw, 2);   // bodi belakang
+  if (K.pod >= 1) { rc(g, dk, tw, 14, 3, 9); rc(g, dk, 29 - tw, 14, 3, 9); }
+  if (K.pod >= 2) { rc(g, hl, tw, 14, 3, 1); rc(g, hl, 29 - tw, 14, 3, 1); }
+  if (K.exh === 0) { rc(g, 0x546e7a, 18, 9, 9, 9); rc(g, 0x4fc3f7, 20, 11, 2, 5); rc(g, 0x4fc3f7, 23, 11, 2, 5); }      // listrik
+  else {
+    rc(g, 0x455a64, 19, 10, 7, 8); rc(g, 0x78909c, 19, 11, 7, 1); rc(g, 0x78909c, 19, 14, 7, 1);                        // mesin
+    const pipe = (x, w) => { rc(g, 0xb0bec5, x, 19, w, 5); rc(g, DARK, x, 23, w, 1); };
+    if (K.exh === 1) pipe(21, 3); else if (K.exh === 2) { pipe(12, 3); pipe(21, 3); } else { pipe(10, 3); pipe(15, 3); pipe(21, 4); }
   }
-  if (sp.drv) drawDriverPx(g, sp.drv, GLASSY[t][0], GLASSY[t][1]);
+  if (K.bar === 1) rc(g, 0xcfd8dc, 5, 24, 22, 2); else if (K.bar === 2) { rc(g, DARK, 4, 23, 24, 3); rc(g, 0xfdd835, 4, 23, 3, 3); rc(g, 0xfdd835, 25, 23, 3, 3); }
+  if (ch.g === 'girl') rc(g, 0x5d3a1a, 12, 6, 8, 6);                          // rambut
+  rc(g, sh, 9, 8, 14, 4); rc(g, sh, 7, 10, 3, 6); rc(g, sh, 22, 10, 3, 6);    // bahu & lengan
+  if (K.seat === 0) { rc(g, dk, 10, 11, 12, 9); rc(g, shade(dk, 1.25), 10, 11, 12, 1); }
+  else if (K.seat === 1) { rc(g, dk, 10, 9, 12, 11); rc(g, shade(dk, 1.25), 12, 8, 8, 2); }
+  else { rc(g, dk, 9, 10, 14, 10); rc(g, hl, 8, 12, 2, 6); rc(g, hl, 22, 12, 2, 6); rc(g, shade(dk, 1.25), 11, 9, 10, 2); }
+  const num = String(sp.m + 1), pw = num.length * 4 + 1, px = Math.round(16 - pw / 2);        // plat nomor
+  rc(g, K.plate, px, 13, pw, 7); pxText(g, num, px + 1, 14, 1, 0x263238);
+  rc(g, TAIL, tw + 2, 20, 3, 2); rc(g, TAIL, 27 - tw, 20, 3, 2);
+  if (sp.lv === 1) { [11, 20].forEach((x) => rc(g, 0xffffff, x, 11, 1, 13)); rc(g, 0xffffff, 13, 22, 1, 2); rc(g, 0xffffff, 18, 22, 1, 2); }
+  else if (sp.lv === 2) { for (let i = 0; i < 8; i++) for (let r = 0; r < 2; r++) rc(g, (i + r) % 2 ? 0x111111 : 0xffffff, 8 + i * 2, 21 + r * 2, 2, 2); }
+  else if (sp.lv === 3) {
+    [tw + 1, 27 - tw].forEach((x, i) => { rc(g, 0xff9800, x, 18, 4, 6); rc(g, 0xff9800, x + (i ? 1 : 0), 16, 3, 2); rc(g, 0xffeb3b, x + (i ? 1 : 0), 21, 3, 3); });
+  }
+  if (sp.acc && K.acc === 2) { rc(g, DARK, 9, 2, 1, 10); rc(g, DARK, 22, 2, 1, 10); rc(g, DARK, 9, 2, 14, 1); rc(g, 0xfff176, 11, 0, 2, 2); rc(g, 0xfff176, 19, 0, 2, 2); }
+  rc(g, hc, 13, 1, 6, 7); rc(g, shade(hc, 0.72), 13, 7, 6, 1); rc(g, shade(hc, 1.3), 14, 1, 2, 1); rc(g, 0xf2c29b, 15, 8, 2, 1);   // helm
+  if (ch.hs === 1) rc(g, hst, 15, 1, 2, 6); else if (ch.hs === 2) { rc(g, hst, 13, 3, 1, 3); rc(g, hst, 18, 3, 1, 3); rc(g, hst, 15, 1, 2, 1); }
+  if (sp.acc && K.acc === 0) { rc(g, DARK, 4, 9, 24, 2); rc(g, hl, 4, 9, 24, 1); rc(g, DARK, 4, 7, 2, 6); rc(g, DARK, 26, 7, 2, 6); rc(g, DARK, 11, 11, 2, 3); rc(g, DARK, 19, 11, 2, 3); }
+  if (sp.acc && K.acc === 1) { rc(g, DARK, 25, 1, 1, 15); rc(g, 0xff1744, 26, 1, 5, 3); rc(g, 0xffffff, 27, 2, 2, 1); }
+  if (sp.acc && K.acc === 3) { rc(g, DARK, 3, 25, 26, 3); rc(g, 0xfdd835, 3, 25, 3, 3); rc(g, 0xfdd835, 26, 25, 3, 3); }
 }
 const carCache = new Map();
 function carSprite(sp) {
@@ -537,6 +530,48 @@ function initSprites() {
     pxText(g, 'FINISH', 19, 6, 2, 0xffffff);
     rc(g, 0xff5252, 3, 0, 8, 2); rc(g, 0xff5252, 73, 0, 8, 2);
   });
+  // --- sirkuit ---
+  SP.pine = [0x1b5e20, 0x2e7d32].map((c) => mk(14, 36, (g) => {
+    rc(g, 0x5d4037, 6, 30, 2, 6);
+    for (let t = 0; t < 5; t++) { const w = 4 + t * 2, x = 7 - Math.floor(w / 2), y = 1 + t * 6; rc(g, c, x, y, w, 7); rc(g, shade(c, 1.3), x, y, 1, 7); rc(g, shade(c, 0.75), x + w - 1, y, 1, 7); }
+  }));
+  SP.cherry = [0xf48fb1, 0xf8bbd0].map((c) => mk(22, 30, (g) => {
+    rc(g, 0x6d4c41, 9, 19, 4, 11); rc(g, 0x4e342e, 9, 19, 1, 11);
+    rc(g, shade(c, 0.85), 2, 10, 18, 10); rc(g, c, 3, 5, 16, 9); rc(g, shade(c, 1.1), 6, 1, 10, 7);
+    [[4, 9], [10, 4], [15, 8], [7, 14], [14, 15], [10, 10]].forEach(([x, y]) => rc(g, 0xffffff, x, y, 2, 2));
+    [[2, 10], [19, 10], [3, 5], [18, 5]].forEach(([x, y]) => g.clearRect(x, y, 1, 1));
+  }));
+  const stand = (roof, base, pal, seed) => { const r = mulberry32(seed); return mk(48, 24, (g) => {
+    rc(g, base, 0, 8, 48, 16);
+    for (let q = 0; q < 4; q++) { rc(g, shade(base, 0.78), 0, 10 + q * 4, 48, 1); for (let x = 1; x < 46; x += 3) rc(g, pal[Math.floor(r() * pal.length)], x, 8 + q * 4, 2, 3); }
+    rc(g, roof, 0, 2, 48, 4); rc(g, shade(roof, 0.75), 0, 5, 48, 1); rc(g, 0x90a4ae, 1, 6, 1, 18); rc(g, 0x90a4ae, 46, 6, 1, 18);
+  }); };
+  const crowd = [0xe53935, 0xfdd835, 0x1e88e5, 0xf48fb1, 0xffffff, 0x43a047, 0xff9800];
+  SP.stand = [stand(0xe53935, 0xcfd8dc, crowd, 1), stand(0x1e88e5, 0xcfd8dc, crowd, 2), stand(0xff9800, 0xb0bec5, crowd, 3), stand(0x6d4c41, 0x8d6e63, crowd, 4)];
+  SP.sail = mk(64, 34, (g) => {
+    rc(g, 0x78909c, 0, 18, 64, 16);
+    const r = mulberry32(8);
+    for (let q = 0; q < 3; q++) { rc(g, 0x607d8b, 0, 21 + q * 4, 64, 1); for (let x = 1; x < 62; x += 3) rc(g, crowd[Math.floor(r() * crowd.length)], x, 19 + q * 4, 2, 3); }
+    for (let x = 0; x < 64; x++) { const top = Math.round(12 - 10 * Math.sin(Math.PI * x / 63)); rc(g, 0xffffff, x, top, 1, 3); rc(g, 0x1565c0, x, top + 3, 1, 2); }
+    rc(g, 0x90a4ae, 2, 14, 1, 20); rc(g, 0x90a4ae, 61, 14, 1, 20);
+  });
+  SP.board = [[0xe53935, 0xffffff], [0x1e88e5, 0xfdd835], [0x43a047, 0xffffff], [0xff9800, 0x263238]].map(([a, b], k) => mk(16, 11, (g) => {
+    rc(g, 0x546e7a, 3, 8, 2, 3); rc(g, 0x546e7a, 11, 8, 2, 3); rc(g, a, 0, 0, 16, 8); rc(g, b, 0, 2, 16, 2);
+    const r = mulberry32(20 + k); for (let x = 2; x < 14; x += 3) if (r() < 0.7) rc(g, b, x, 5, 2, 2);
+  }));
+  SP.wheel = mk(48, 52, (g) => {
+    const pal = [0xe53935, 0xfdd835, 0x1e88e5, 0x43a047, 0xff9800, 0xf48fb1];
+    for (let a = 0; a < 6.28; a += 0.025) rc(g, 0xeceff1, Math.round(24 + 20 * Math.cos(a)), Math.round(24 + 20 * Math.sin(a)), 2, 2);
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; for (let t = 0; t < 20; t += 1) rc(g, 0xcfd8dc, Math.round(24 + t * Math.cos(a)), Math.round(24 + t * Math.sin(a)), 1, 1); }
+    for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; rc(g, pal[k % 6], Math.round(24 + 20 * Math.cos(a)) - 1, Math.round(24 + 20 * Math.sin(a)), 4, 4); }
+    for (let t = 0; t <= 1; t += 0.03) { rc(g, 0x90a4ae, Math.round(24 - 14 * t), Math.round(24 + 26 * t), 2, 2); rc(g, 0x90a4ae, Math.round(24 + 14 * t), Math.round(24 + 26 * t), 2, 2); }
+    rc(g, 0x546e7a, 6, 50, 36, 2); rc(g, 0xfdd835, 22, 22, 4, 4);
+  });
+  SP.pitb = mk(96, 28, (g) => {
+    rc(g, 0xeceff1, 0, 6, 96, 22); rc(g, 0x546e7a, 0, 3, 96, 3); rc(g, 0xe53935, 0, 6, 96, 2); rc(g, 0xb0bec5, 0, 26, 96, 2);
+    const pal = [0xe53935, 0x1e88e5, 0xfdd835, 0x43a047, 0xff9800, 0x8e44ff];
+    for (let i = 0; i < 8; i++) { const x = 4 + i * 11; rc(g, 0x37474f, x, 12, 9, 16); rc(g, pal[i % 6], x, 9, 9, 3); rc(g, 0x546e7a, x, 16, 9, 1); rc(g, 0x546e7a, x, 20, 9, 1); }
+  });
   SP.flag = [];
   for (let k = 0; k <= 9; k++) SP.flag.push(mk(18, 36, (g) => {
     rc(g, 0x90a4ae, 8, 8, 2, 28); rc(g, 0x263238, 2, 8, 14, 14); rc(g, 0xffffff, 2, 8, 14, 1); rc(g, 0xffffff, 2, 21, 14, 1);
@@ -550,7 +585,7 @@ const specOf = (i) => { const c = G.cust[i]; return { m: i, c: c.col, acc: c.acc
 const mySpec = () => specOf(G.carIdx);
 function oppSpecs(rng, pc) {          // dua lawan: warna beda dari pemain & dari satu sama lain
   const cols = shuffle([0, 1, 2, 3].filter((c) => c !== pc), rng);
-  return [0, 1].map((i) => ({ m: Math.floor(rng() * 4), c: cols[i], acc: rng() < 0.5 ? 1 : 0, lv: Math.floor(rng() * 4),
+  return [0, 1].map((i) => ({ m: Math.floor(rng() * NK), c: cols[i], acc: rng() < 0.5 ? 1 : 0, lv: Math.floor(rng() * 4),
     drv: { g: rng() < 0.5 ? 'boy' : 'girl', hat: Math.floor(rng() * 6), hs: Math.floor(rng() * 3), shirt: Math.floor(rng() * 6) } }));
 }
 function mountCar(which, sp) { CAR[which] = { spec: sp, vis: true, s: 0, x: 0, bob: 0, yaw: 0, boost: false }; }
@@ -578,30 +613,27 @@ function buildWorld(ti, layout, mode) {
   initSprites();
   const hard = mode !== 'easy', curvy = mode === 'curvy';
   const T = TRACKS[ti], N = T.flags, len = N * SEG;
-  buildRoad(len, curvy);
+  buildRoad(len, curvy, T.curve);
   const rng = mulberry32(1337 + ti * 101), items = [];
   const add = (sp, s, x, wu) => items.push({ sp, s, x, wu });
-  const end = len + 120;
-  if (T.theme === 'desa') {
-    for (let s = -30; s < end; s += 8 + rng() * 6) [-1, 1].forEach((sd) => {
-      const x = sd * (9.5 + rng() * 26), r = rng();
-      if (r < 0.6) add(SP.tree[Math.floor(rng() * 3)], s, x, 5.2);
-      else if (r < 0.78) add(SP.house[Math.floor(rng() * 4)], s, x + sd * 3, 9.5);
-      else add(SP.bush, s, x, 2.8);
-    });
-  } else if (T.theme === 'pantai') {
-    for (let s = -30; s < end; s += 9 + rng() * 6) {
-      if (rng() < 0.5) add(SP.palm, s, -(10 + rng() * 9), 6.2); else add(SP.umbrella[Math.floor(rng() * 2)], s, -(10 + rng() * 9), 4.6);
-      const x = 10 + rng() * 22, r2 = rng();
-      if (r2 < 0.5) add(SP.palm, s + 3, x, 6.2); else if (r2 < 0.75) add(SP.hut, s + 3, x + 2, 6.2); else add(SP.bush, s + 3, x, 2.8);
+  const end = len + 120, th = T.theme;
+  const pick = (a) => a[Math.floor(rng() * a.length)];
+  for (let s = 25; s < end - 40; s += 55 + rng() * 30) add(SP.stand[T.stand], s, (rng() < 0.5 ? -1 : 1) * 18, 16);        // tribun
+  for (let s = 10; s < end; s += 16 + rng() * 8) add(pick(SP.board), s, ((Math.floor(s / 16) & 1) ? 1 : -1) * 12.8, 6.5);   // papan iklan
+  add(SP.pitb, 70, -35, 40);                                                                                              // gedung pit
+  if (th === 'sepang') add(SP.sail, 32, 28, 26);
+  if (th === 'suzuka') add(SP.wheel, len * 0.5, 54, 15);
+  for (let s = -30; s < end; s += 7 + rng() * 5) [-1, 1].forEach((sd) => {
+    const x = sd * (14.5 + rng() * 26), r = rng();
+    if (th === 'sentul') { if (r < 0.45) add(pick(SP.pine), s, x, 4.6); else if (r < 0.8) add(pick(SP.tree), s, x, 5.2); else add(SP.bush, s, x, 2.8); }
+    else if (th === 'suzuka') { if (r < 0.45) add(pick(SP.cherry), s, x, 5.6); else if (r < 0.75) add(pick(SP.tree), s, x, 5.2); else add(SP.bush, s, x, 2.8); }
+    else if (th === 'sepang') { if (r < 0.55) add(SP.palm, s, x, 6.2); else if (r < 0.85) add(pick(SP.tree), s, x, 5.2); else add(SP.bush, s, x, 2.8); }
+    else if (th === 'monza') { if (r < 0.6) add(pick(SP.pine), s, x, 5.2); else if (r < 0.88) add(pick(SP.tree), s, x, 5.4); else add(SP.bush, s, x, 2.8); }
+    else {          // mandalika: laut di kiri, pantai berpalem
+      const px = sd < 0 ? -(14.5 + rng() * 7) : x;
+      if (r < 0.5) add(SP.palm, s, px, 6.2); else if (r < 0.7) add(SP.umbrella[Math.floor(rng() * 2)], s, px, 4.6); else if (r < 0.82 && sd > 0) add(SP.hut, s, px + 2, 6.2); else add(SP.bush, s, px, 2.8);
     }
-  } else {
-    for (let s = -30; s < end; s += 13 + rng() * 5) [-1, 1].forEach((sd) => {
-      const b = SP.building[Math.floor(rng() * SP.building.length)];
-      add(b, s, sd * (10.5 + rng() * 9) + sd * b.wu / 2, b.wu);
-    });
-    for (let s = 0; s < end; s += 30) [-1, 1].forEach((sd) => add(SP.lamp, s + 7, sd * 8.2, 1.9));
-  }
+  });
   for (let k = 1; k < N; k++) [-1, 1].forEach((sd) => add(SP.flag[k], k * SEG, sd * 9.2, 3.4));
   add(SP.arch, len, 0, 17);
   items.sort((a, b) => a.s - b.s);
@@ -615,52 +647,56 @@ const BGP = 640, BGH = 64;
 function bgBuild() {
   BG = []; CLOUDS = [];
   if (!world) return;
-  const th = world.T.theme, rng = mulberry32(55 + world.ti), tau = Math.PI * 2;
-  const far = mk(BGP, BGH, (g) => {
-    if (th === 'desa') {
-      for (let k = 0; k < 6; k++) {
-        const cx = (k + 0.3 + rng() * 0.4) * (BGP / 6), w = 56 + rng() * 30, h = 28 + rng() * 22;
-        for (let y = 0; y < h; y++) { const hw = (w / 2) * (y / h); rc(g, y < 7 ? 0xffffff : y < 11 ? 0xdfe6ec : 0x7aa0bd, Math.round(cx - hw), BGH - h + y, Math.max(1, Math.round(hw * 2)), 1); }
-      }
-    } else if (th === 'pantai') {
-      rc(g, 0x4fc3f7, 0, 56, BGP, 8); rc(g, 0x81d4fa, 0, 56, BGP, 1);
-      for (let k = 0; k < 3; k++) {
-        const cx = 90 + k * 200 + rng() * 40, w = 44 + rng() * 30;
-        for (let x = 0; x < w; x++) { const h = Math.round(14 * Math.sin(Math.PI * x / w)); rc(g, 0x5aa469, Math.round(cx - w / 2 + x), 56 - h, 1, h); }
-      }
-      for (let k = 0; k < 4; k++) { const x = 40 + k * 150 + rng() * 60; rc(g, 0x6d4c41, x, 55, 9, 2); rc(g, 0xffffff, x + 4, 46, 1, 9); rc(g, 0xffffff, x + 5, 48, 3, 7); }
-    } else {
-      for (let x = 0; x < BGP;) {
-        const w = 12 + Math.floor(rng() * 14), h = 20 + Math.floor(rng() * 38), col = [0xb0bec5, 0x9fa8da, 0xcfd8dc][Math.floor(rng() * 3)];
-        if (x + w > BGP) break;
-        rc(g, col, x, BGH - h, w - 1, h); rc(g, shade(col, 0.85), x + w - 4, BGH - h, 3, h);
-        for (let wy = BGH - h + 4; wy < BGH - 4; wy += 5) if (rng() < 0.6) rc(g, 0xffffff, x + 3, wy, 2, 2);
-        x += w;
-      }
+  const th = world.T.theme, rng = mulberry32(55 + world.ti), tau = Math.PI * 2, H = BGH;
+  const peak = (g, cx, w, h, body, cap, capH) => {
+    for (let y = 0; y < h; y++) { const hw = (w / 2) * (y / h); rc(g, y < capH ? 0xffffff : y < capH + 4 ? 0xdfe6ec : (cap ? body : shade(body, 1.0 + 0.1 * (1 - y / h))), Math.round(cx - hw), H - h + y, Math.max(1, Math.round(hw * 2)), 1); }
+  };
+  const hills = (g, base, a1, a2, col, top) => {
+    for (let x = 0; x < BGP; x++) { const h = Math.round(base + a1 * Math.sin(tau * 3 * x / BGP + 1) + a2 * Math.sin(tau * 7 * x / BGP)); rc(g, col, x, H - h, 1, h); rc(g, top, x, H - h, 1, 1); }
+  };
+  const pines = (g, c1, c2, hmin, hmax, step) => {
+    for (let x = 0; x < BGP - 8; x += step + Math.floor(rng() * 4)) {
+      const h = hmin + Math.floor(rng() * (hmax - hmin)), w = 8 + Math.floor(rng() * 4), c = rng() < 0.5 ? c1 : c2;
+      for (let y = 0; y < h; y++) { const hw = (w / 2) * (0.25 + 0.75 * y / h); rc(g, c, Math.round(x + w / 2 - hw), H - h + y, Math.max(1, Math.round(hw * 2)), 1); }
+    }
+  };
+  const palms = (g, base, n) => {
+    rc(g, 0xf0d9a0, 0, base, BGP, H - base);
+    for (let k = 0; k < n; k++) {
+      const x = 12 + k * (BGP / n) + Math.floor(rng() * 24), h = 10 + Math.floor(rng() * 8);
+      rc(g, 0x6d4c41, x, base - h, 1, h); rc(g, 0x2e7d32, x - 4, base - h - 1, 9, 2); rc(g, 0x388e3c, x - 3, base - h - 3, 7, 2); rc(g, 0x2e7d32, x - 5, base - h + 1, 2, 2); rc(g, 0x2e7d32, x + 4, base - h + 1, 2, 2);
+    }
+  };
+  const sea = (g) => {
+    rc(g, 0x4fc3f7, 0, 56, BGP, 8); rc(g, 0x81d4fa, 0, 56, BGP, 1);
+    for (let k = 0; k < 4; k++) { const x = 40 + k * 150 + rng() * 60; rc(g, 0x6d4c41, x, 55, 9, 2); rc(g, 0xffffff, x + 4, 46, 1, 9); rc(g, 0xffffff, x + 5, 48, 3, 7); }
+  };
+  const far = mk(BGP, H, (g) => {
+    if (th === 'sentul') { for (let k = 0; k < 5; k++) peak(g, (k + 0.3 + rng() * 0.4) * (BGP / 5), 90 + rng() * 40, 30 + rng() * 22, 0x6a93a8, true, 0); }
+    else if (th === 'suzuka') {
+      peak(g, 250, 230, 52, 0x7a98b8, false, 14);
+      for (let k = 0; k < 4; k++) peak(g, 20 + k * 170 + rng() * 50, 90, 20 + rng() * 10, 0x8fb0c0, true, 0);
+    } else if (th === 'sepang') {
+      hills(g, 18, 4, 3, 0x80b9aa, 0x9ccdbf);
+      [130, 440].forEach((x0) => {
+        rc(g, 0xcfd8dc, x0, H - 50, 7, 50); rc(g, 0xb0bec5, x0 + 14, H - 50, 7, 50); rc(g, 0x90a4ae, x0 + 7, H - 28, 7, 2);
+        rc(g, 0xcfd8dc, x0 + 2, H - 56, 3, 6); rc(g, 0xb0bec5, x0 + 16, H - 56, 3, 6);
+        for (let y = H - 46; y < H - 4; y += 5) { rc(g, 0xffffff, x0 + 1, y, 2, 2); rc(g, 0xffffff, x0 + 15, y, 2, 2); }
+      });
+    } else if (th === 'monza') {
+      for (let k = 0; k < 7; k++) peak(g, (k + 0.4 + rng() * 0.3) * (BGP / 7), 70 + rng() * 40, 34 + rng() * 26, 0x8ea8c3, false, 10);
+    } else {           // mandalika: gunung Rinjani + laut
+      peak(g, 300, 240, 50, 0x7c6a5a, true, 0); rc(g, 0x3e2f24, 290, H - 50, 20, 3);
+      sea(g);
+      for (let k = 0; k < 3; k++) { const cx = 90 + k * 200 + rng() * 40, w = 44 + rng() * 30; for (let x = 0; x < w; x++) { const h = Math.round(12 * Math.sin(Math.PI * x / w)); rc(g, 0x5aa469, Math.round(cx - w / 2 + x), 56 - h, 1, h); } }
     }
   });
-  const near = mk(BGP, BGH, (g) => {
-    if (th === 'desa') {
-      for (let x = 0; x < BGP; x++) {
-        const h = Math.round(13 + 6 * Math.sin(tau * 3 * x / BGP + 1) + 4 * Math.sin(tau * 7 * x / BGP));
-        rc(g, 0x4f9d3a, x, BGH - h, 1, h); rc(g, 0x6fbf4b, x, BGH - h, 1, 1);
-      }
-      for (let k = 0; k < 40; k++) { const x = Math.floor(rng() * (BGP - 4)); rc(g, 0x2e7d32, x, BGH - 24 + Math.floor(rng() * 8), 3, 4); }
-    } else if (th === 'pantai') {
-      rc(g, 0xf0d9a0, 0, 60, BGP, 4);
-      for (let k = 0; k < 10; k++) {
-        const x = 20 + k * 62 + Math.floor(rng() * 24), h = 10 + Math.floor(rng() * 8);
-        rc(g, 0x6d4c41, x, 60 - h, 1, h); rc(g, 0x2e7d32, x - 4, 60 - h - 1, 9, 2); rc(g, 0x388e3c, x - 3, 60 - h - 3, 7, 2); rc(g, 0x2e7d32, x - 5, 60 - h + 1, 2, 2); rc(g, 0x2e7d32, x + 4, 60 - h + 1, 2, 2);
-      }
-    } else {
-      for (let x = 0; x < BGP;) {
-        const w = 10 + Math.floor(rng() * 12), h = 10 + Math.floor(rng() * 24), col = [0x78909c, 0x607d8b, 0x8d6e63][Math.floor(rng() * 3)];
-        if (x + w > BGP) break;
-        rc(g, col, x, BGH - h, w - 1, h);
-        for (let wy = BGH - h + 3; wy < BGH - 3; wy += 4) for (let wx = x + 2; wx < x + w - 3; wx += 4) if (rng() < 0.5) rc(g, rng() < 0.7 ? 0xfff59d : 0x90caf9, wx, wy, 2, 2);
-        x += w;
-      }
-    }
+  const near = mk(BGP, H, (g) => {
+    if (th === 'sentul') pines(g, 0x2e7d32, 0x1b5e20, 14, 26, 6);
+    else if (th === 'suzuka') { hills(g, 13, 6, 4, 0x4f9d3a, 0x6fbf4b); for (let k = 0; k < 50; k++) rc(g, 0xf8bbd0, Math.floor(rng() * (BGP - 3)), H - 22 + Math.floor(rng() * 10), 3, 3); }
+    else if (th === 'sepang') palms(g, 58, 14);
+    else if (th === 'monza') pines(g, 0x1b5e20, 0x14451a, 18, 32, 5);
+    else palms(g, 60, 9);
   });
   BG = [{ sp: far, par: 0.25 }, { sp: near, par: 0.55 }];
   for (let i = 0; i < 8; i++) {
@@ -732,7 +768,7 @@ function drawRoad(rain) {
   const skyC = skyCols(rain).hz;
   const gA = mix(T.ground, 0x55606b, rain * 0.4), gB = shade(gA, 0.92);
   const asA = mix(0x37474f, 0x242c31, rain * 0.6), asB = shade(asA, 1.12);
-  const pantai = T.theme === 'pantai', half = VW / 2 + CV.shift;
+  const half = VW / 2 + CV.shift, runC = mix(T.run, 0x55606b, rain * 0.4);
   for (let y = HY + 1; y < VH; y++) {
     const dy = y - HY, z = HF / dy, s = CV.s + z, sc = dy / CV.h;
     const fog = clamp((z - 80) / 160, 0, 0.92);
@@ -746,10 +782,13 @@ function drawRoad(rain) {
       ctx.fillRect(a, y, b - a, 1);
     };
     R_(0, VW, (Math.floor(s / 7) & 1) ? gA : gB);
-    if (pantai) {
+    if (T.sea) {
       R_(0, cxp - 22.8 * sc, (Math.floor(s / 5) & 1) ? 0x29b6f6 : 0x4fc3f7);
       R_(cxp - 22.8 * sc, cxp - 21.6 * sc, 0xffffff);
     }
+    R_(cxp - 11.5 * sc, cxp + 11.5 * sc, (Math.floor(s / 9) & 1) ? runC : shade(runC, 0.94));                       // area aman (run-off)
+    const wc = T.wall[Math.floor(s / 2.5) & 1];
+    R_(cxp - 11.6 * sc, cxp - 10.8 * sc, wc, 1); R_(cxp + 10.8 * sc, cxp + 11.6 * sc, wc, 1);                         // tembok ban
     const cb = (Math.floor(s / 6) & 1) ? 0xffffff : 0xe53935;
     R_(cxp - 7.5 * sc, cxp - 6.8 * sc, cb, 1); R_(cxp + 6.8 * sc, cxp + 7.5 * sc, cb, 1);
     R_(cxp - 6.8 * sc, cxp + 6.8 * sc, (Math.floor(s / 14) & 1) ? asB : asA);
@@ -796,7 +835,7 @@ function drawSpr(sp, wu, s, x, lift, fogK) {
 }
 function drawCarObj(o, boostFx) {
   const sp = carSprite(o.spec), p = proj(o.s, o.x); if (!p) return;
-  const dw = Math.round(2.75 * p.sc); if (dw < 2) return;
+  const dw = Math.round(2.4 * p.sc); if (dw < 2) return;
   const dh = Math.round(dw * sp.h / sp.w), bob = Math.round(o.bob * p.sc * 1.5);
   const px = Math.round(p.sx - dw / 2), py = Math.round(p.sy - dh - bob);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -894,6 +933,13 @@ function drawShow(kind) {
   }
   ctx.fillStyle = 'rgba(255,255,255,0.10)';                                // lingkaran cahaya
   for (let i = 0; i < 5; i++) { const w = 150 - i * 22, h = 22 - i * 3; ctx.fillRect(cxs - w / 2, fy + 36 - i * 2, w, Math.max(1, h * 0.5)); }
+  if (kind === 'custom') {                                                 // suasana pit stop: papan, lampu, tumpukan ban
+    const bw = 74, bx = Math.round(cxs - bw / 2), by = 25;
+    rc(ctx, 0x263238, bx, by, bw, 16); rc(ctx, 0xfdd835, bx, by, bw, 1); rc(ctx, 0xfdd835, bx, by + 15, bw, 1);
+    pxText(ctx, 'PIT STOP', bx + 6, by + 3, 2, 0xfdd835);
+    for (let i = 0; i < 4; i++) rc(ctx, (Math.floor(CLK * 3) + i) % 2 ? 0xff5252 : 0x7a2a2a, bx + 6 + i * 20, by + 13, 6, 1);
+    [Math.round(freeL * VW) + 6, VW - 30].forEach((x) => { for (let t = 0; t < 3; t++) { const y = fy + 30 - t * 7; rc(ctx, 0x1b1f22, x, y, 24, 7); rc(ctx, 0x37474f, x, y, 24, 1); rc(ctx, 0xffffff, x + 3, y + 3, 18, 1); } });
+  }
   const bob = Math.round(Math.sin(CLK * 3) * 1);
   if (kind === 'custom') {
     const sp = carSprite(CAR.p.spec), k = clamp(Math.floor(fw / sp.w), 2, Math.floor(VH * 0.7 / sp.h)), sway = Math.round(Math.sin(CLK * 0.9) * 6);
@@ -957,21 +1003,34 @@ function boostBurst(ci) {
   const b = $('#boosttxt'); b.classList.remove('go'); void b.offsetWidth; b.classList.add('go');
 }
 
-/* ikon mobil (SVG) — warna, aksesori, livery ikut berubah */
+/* ikon gokart (SVG, tampak samping) — model, warna, aksesori, livery ikut berubah */
 function carSvg(m, ci, acc, lv) {
-  const col = COLORS[ci].css, W = '#fff', GL = '#9fd8f5', DK = '#263238', S = 'stroke="#2b2350" stroke-width="2" stroke-linejoin="round"';
+  const K = KARTS[m], hx = COLORS[ci].hex, col = COLORS[ci].css, dkc = css(shade(hx, 0.72)), W = '#fff', DK = '#263238', S = 'stroke="#2b2350" stroke-width="2" stroke-linejoin="round"';
   const r = (x, y, w, h, f, ex = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${S} ${ex}/>`;
-  const P = [{ by: 14, bh: 9 }, { by: 13, bh: 10 }, { by: 13, bh: 10 }, { by: 10, bh: 13 }][m];
+  const rim = css(K.rim), tr = 12 + (K.tw - 5) * 2, helm = css(SHIRTS[G.char.hat]);
   let o = '';
-  if (m === 0) { o += r(2, P.by, 52, P.bh, col) + r(15, 6, 24, 9, col) + r(17, 8, 20, 5, GL); if (acc) o += r(1, 8, 9, 3, DK) + r(3, 10, 2, 5, DK); }
-  else if (m === 1) { o += r(2, P.by, 52, P.bh, col) + r(14, 4, 26, 10, W) + r(16, 6, 22, 6, GL); if (acc) o += r(21, 0, 5, 4, '#ff1744') + r(28, 0, 5, 4, '#2979ff'); }
-  else if (m === 2) { o += r(2, P.by, 52, P.bh, col) + r(14, 4, 26, 10, col) + r(16, 6, 22, 6, GL); if (acc) o += r(22, 0, 12, 4, W); }
-  else { o += r(0, 12, 4, 9, DK) + r(2, P.by, 52, P.bh, col) + r(10, 2, 32, 9, col) + r(13, 4, 26, 5, GL); if (acc) o += r(14, -2, 6, 3, '#fff176') + r(25, -2, 6, 3, '#fff176') + r(36, -2, 6, 3, '#fff176'); }
-  if (lv === 1) o += `<rect x="3" y="${P.by + 3}" width="50" height="2" fill="${W}"/><rect x="3" y="${P.by + 6}" width="50" height="2" fill="${W}"/>`;
-  else if (lv === 2) for (let i = 0; i < 10; i++) o += `<rect x="${4 + i * 5}" y="${P.by + 2}" width="5" height="5" fill="${i % 2 ? '#111' : W}"/>`;
-  else if (lv === 3) o += `<polygon points="54,${P.by + P.bh} 54,${P.by + 1} 36,${P.by + P.bh}" fill="#ff9800"/><polygon points="54,${P.by + P.bh} 54,${P.by + 5} 44,${P.by + P.bh}" fill="#ffeb3b"/>`;
-  o += r(8, 21, 11, 11, DK, 'rx="3"') + r(37, 21, 11, 11, DK, 'rx="3"');
-  return `<svg class="ci" viewBox="0 -3 56 38" aria-hidden="true">${o}</svg>`;
+  o += r(1, 17, K.exh === 0 ? 9 : 7, 8, K.exh === 0 ? '#4fc3f7' : '#78909c');                         // mesin / baterai
+  if (K.exh >= 2) o += r(0, 25, 4, 3, '#b0bec5');
+  if (K.exh === 1 || K.exh === 3) o += r(0, 22, 4, 3, '#b0bec5');
+  o += r(9, 21, 40, 7, col) + r(42, 17, 12, 8, col);                                                   // lantai & hidung
+  if (K.pod) o += r(22, 19, 14, 4, dkc);
+  if (K.seat === 0) o += r(14, 13, 10, 10, dkc); else if (K.seat === 1) o += r(13, 9, 10, 14, dkc); else o += r(12, 11, 13, 12, dkc) + r(11, 15, 3, 7, col);
+  o += `<circle cx="19" cy="6" r="5.5" fill="${helm}" ${S}/><rect x="21" y="5" width="5" height="3" fill="#9fd8f5"/>`;     // pembalap
+  o += `<path d="M33 22 L37 11" stroke="${DK}" stroke-width="3" stroke-linecap="round"/><rect x="33" y="8" width="8" height="3" rx="1.5" fill="${DK}"/>`;
+  o += `<rect x="16" y="15" width="6" height="5" fill="${css(K.plate)}" stroke="#2b2350" stroke-width="1"/>`;
+  if (K.bar === 1) o += r(51, 19, 4, 9, '#cfd8dc'); else if (K.bar === 2) o += r(51, 19, 4, 9, DK) + `<rect x="51" y="19" width="4" height="3" fill="#fdd835"/>`;
+  o += r(4, 26 - tr / 2, tr * 0.8, tr, DK, 'rx="3"') + `<rect x="${4 + tr * 0.4 - 1}" y="${26 - tr / 2 + 3}" width="2" height="${tr - 6}" fill="${rim}"/>`;      // ban belakang
+  o += r(41, 20, 11, 9, DK, 'rx="3"') + `<rect x="45" y="22" width="2" height="5" fill="${rim}"/>`;                                          // ban depan
+  if (lv === 1) o += `<rect x="11" y="23" width="38" height="2" fill="${W}"/>`;
+  else if (lv === 2) for (let i = 0; i < 8; i++) o += `<rect x="${12 + i * 4.5}" y="22" width="4.5" height="4.5" fill="${i % 2 ? '#111' : W}"/>`;
+  else if (lv === 3) o += `<polygon points="10,28 10,19 24,28" fill="#ff9800"/><polygon points="10,28 10,23 18,28" fill="#ffeb3b"/>`;
+  if (acc) {
+    if (K.acc === 0) o += r(0, 5, 14, 3, DK) + r(6, 8, 3, 8, DK);
+    else if (K.acc === 1) o += `<path d="M7 17 V0" stroke="${DK}" stroke-width="2"/><polygon points="7,0 16,3 7,6" fill="#ff1744"/>`;
+    else if (K.acc === 2) o += `<path d="M13 12 V3 H25" stroke="${DK}" stroke-width="2" fill="none"/>` + r(15, -2, 4, 3, '#fff176') + r(21, -2, 4, 3, '#fff176');
+    else o += r(52, 17, 4, 11, '#fdd835') + r(0, 27, 6, 4, '#fdd835');
+  }
+  return `<svg class="ci" viewBox="-2 -4 60 36" aria-hidden="true">${o}</svg>`;
 }
 function helmSvg(ci, st) {
   const c = '#' + SHIRTS[ci].toString(16).padStart(6, '0'), S = 'stroke="#2b2350" stroke-width="2" stroke-linejoin="round"';
@@ -1019,7 +1078,7 @@ function renderCustom() {
   const sw = (cur, arr) => arr.map((h, i) => `<button class="swb ${cur === i ? 'sel' : ''}" data-i="${i}" style="background:#${h.toString(16).padStart(6, '0')}" aria-label="warna"></button>`).join('');
   $('#cu-shirt').innerHTML = sw(G.char.shirt, SHIRTS);
   $('#cu-col').innerHTML = sw(c.col, COLORS.map((x) => x.hex));
-  $('#cu-acc').innerHTML = [0, 1].map((v) => `<button class="ccard car ${c.acc === v ? 'sel' : ''}" data-i="${v}">${carSvg(G.carIdx, c.col, v, c.lv)}${v ? `<small>${ACC_ICON[G.carIdx]}</small>` : ''}</button>`).join('');
+  $('#cu-acc').innerHTML = [0, 1].map((v) => `<button class="ccard car ${c.acc === v ? 'sel' : ''}" data-i="${v}">${carSvg(G.carIdx, c.col, v, c.lv)}${v ? `<small>${ACC_ICON[KARTS[G.carIdx].acc]}</small>` : ''}</button>`).join('');
   $('#cu-lv').innerHTML = [0, 1, 2, 3].map((v) => `<button class="ccard car ${c.lv === v ? 'sel' : ''}" data-i="${v}">${carSvg(G.carIdx, c.col, c.acc, v)}</button>`).join('');
 }
 function renderPit() {
@@ -1422,15 +1481,15 @@ function updatePreview(dt) {
   if (CAR.p) placeCar(CAR.p, LANE_X[1], 0, 0, bob);
   if (CAR.a) { CAR.a.vis = !cu; placeCar(CAR.a, LANE_X[2], 7, 0, bob); }
   if (CAR.b) { CAR.b.vis = !cu; placeCar(CAR.b, LANE_X[0], 13, 0, bob); }
-  VIEW.carD = G.state === 'pit' ? 3.9 : 3.3; VIEW.h = 2.4;
+  VIEW.carD = G.state === 'pit' ? 3.4 : 3.0; VIEW.h = 2.2;
   VIEW.camS = -VIEW.carD;
   VIEW.camX = LANE_X[1] * 0.8 + Math.sin(G.t * 0.5) * 0.5;
   if (G.state === 'menu') { freeArea(); VIEW.shift = VW * (freeL + (1 - freeL) / 2 - 0.5); } else VIEW.shift = 0;
 }
 function updateChase(dt) {
   const R = G.R, p = R.p, f = 1 - Math.exp(-dt * 6);
-  VIEW.carD += ((p.boost ? 4.8 : 3.9) - VIEW.carD) * f;
-  VIEW.h += (3.1 - VIEW.h) * f;
+  VIEW.carD += ((p.boost ? 4.2 : 3.4) - VIEW.carD) * f;
+  VIEW.h += (2.7 - VIEW.h) * f;
   VIEW.camX += (p.x * 0.8 - VIEW.camX) * f;
   VIEW.camS = p.s - VIEW.carD;
   VIEW.shift = 0;
@@ -1510,7 +1569,7 @@ $('#menu-cars').addEventListener('click', (e) => {
   if (G.owned[i]) { G.carIdx = i; G.buying = -1; save(); sfx.tick(); setupPreview(); }
   else if (G.buying !== i) { G.buying = i; sfx.tick(); mountPreview(); }      // ketuk pertama: pratinjau + tanya dulu
   else if (G.coins >= CAR_PRICE[i]) {                                          // ketuk kedua: beli
-    G.coins -= CAR_PRICE[i]; G.owned[i] = true; G.carIdx = i; G.buying = -1; save(); sfx.win(); toast('Mobil baru! 🎉', 1400); setupPreview();
+    G.coins -= CAR_PRICE[i]; G.owned[i] = true; G.carIdx = i; G.buying = -1; save(); sfx.win(); toast('Gokart baru! 🎉', 1400); setupPreview();
   } else { G.buying = -1; sfx.lose(); toast('Uangmu kurang! 🪙', 1000); setupPreview(); }
   renderMenu(); renderCustom();
 });
@@ -1578,8 +1637,8 @@ $('#set-delchar').addEventListener('click', () => {
 });
 $('#set-reset').addEventListener('click', () => {
   if (confirmKey !== 'all') { confirmKey = 'all'; syncSet(); return; }
-  G.coins = START_COINS; G.owned = [true, false, false, false]; G.carIdx = 0;
-  G.cust = [0, 1, 2, 3].map((c) => ({ col: c, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false;
+  G.coins = START_COINS; G.owned = KARTS.map((_, i) => i === 0); G.carIdx = 0;
+  G.cust = KARTS.map((_, i) => ({ col: i % 4, acc: 0, lv: 0 })); G.char = { g: 'boy', hat: 0, hs: 0, shirt: 1 }; G.charSet = false;
   confirmKey = ''; save(); sfx.lose(); goHero();
 });
 $('#btn-music').addEventListener('click', () => { G.musicOff = !G.musicOff; applyAudioPrefs(); syncSys(); save(); });
@@ -1645,7 +1704,7 @@ loadSave();
 syncSys();
 {
   const bm = document.querySelector('meta[name=gembalap-build]');
-  $('#ver').textContent = 'Gembalap v0.4 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
+  $('#ver').textContent = 'Gembalap v0.5 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
 }
 /* ======================= PEMBUKA ======================= */
 const SKIP_INTRO = /skipintro/.test(location.search + location.hash);

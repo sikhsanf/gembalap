@@ -1,6 +1,6 @@
 # 🏎️ Gembalap
 
-Game balapan pseudo-3D bergaya pixel (ala OutRun) untuk dimainkan bareng anak. Isi bensin sesuai jumlah bendera, cocokkan warna mobil dengan warna jalur, lalu menang lawan komputer! Dikunci landscape.
+Game gokart pixel pseudo-3D (ala OutRun) untuk dimainkan bareng anak. Isi bensin sesuai jumlah bendera, cocokkan warna gokart dengan warna jalur, lalu menang di sirkuit! Dikunci landscape.
 
 ## Cara main
 1. **Garasi** — pilih mobil, lintasan, kesulitan, dan bantuan bensin.
@@ -34,3 +34,9 @@ Roadmap: v0.3 multiplayer (PeerJS), APK.
 - Three.js dihapus; ukuran file turun dari ~600 KB menjadi ~85 KB.
 - Logika game, musik, menu, hujan, tabrakan, dan bensin tidak berubah.
 - Versi 3D voxel terakhir ada di commit `cc75a28` (v0.3.1).
+
+## v0.5 — gokart & sirkuit
+- Mobil diganti 10 gokart yang bisa dibeli (Kancil gratis, lalu Kelinci … Petir; harga 20–150 koin). Tiap model punya ban, knalpot, jok, bemper, dan nomor sendiri; warna, 1 aksesori, dan livery tetap bisa diubah per gokart.
+- Lintasan diganti 5 sirkuit: Sentul, Suzuka, Sepang, Monza, Mandalika — lengkap dengan tribun, papan iklan, gedung pit, run-off, dan tembok ban. Tiap sirkuit punya latar dan bentuk tikungan khas (dipakai di tingkat Sulit).
+- "Garage" menjadi "Pit Stop".
+- Simpanan lama tetap terbaca (kepemilikan 4 mobil lama dipetakan ke 4 gokart pertama).

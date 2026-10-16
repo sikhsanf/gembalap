@@ -1,7 +1,7 @@
 {
   "name": "Gembalap",
   "short_name": "Gembalap",
-  "description": "Game balapan voxel untuk dimainkan bareng anak: isi bensin, cocokkan warna, menang!",
+  "description": "Game gokart pixel untuk dimainkan bareng anak: isi bensin, cocokkan warna, menang di sirkuit!",
   "lang": "id",
   "start_url": "./",
   "scope": "./",
