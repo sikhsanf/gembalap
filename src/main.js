@@ -1601,7 +1601,21 @@ canvas.addEventListener('pointerup', endDrag);
 canvas.addEventListener('pointercancel', endDrag);
 
 /* audio baru boleh mulai setelah sentuhan pertama; berhenti saat tab disembunyikan */
-const unlock = () => { if (audioInit()) applyMode(); };
+/* kunci landscape: di APK / PWA terpasang lewat manifest; di browser dicoba lewat layar penuh + orientation.lock, kalau gagal tampil layar "putar HP" */
+const needRotate = () => matchMedia('(orientation:portrait) and (pointer:coarse)').matches;
+let lockTried = false;
+function lockLandscape() {
+  try {
+    const so = screen.orientation;
+    if (!so || !so.lock) return;
+    const go = () => so.lock('landscape').catch(() => {});
+    if (matchMedia('(display-mode:fullscreen),(display-mode:standalone)').matches || document.fullscreenElement) go();
+    else if (matchMedia('(pointer:coarse)').matches && document.documentElement.requestFullscreen)
+      document.documentElement.requestFullscreen().then(go).catch(() => {});
+  } catch (e) {}
+}
+lockLandscape();
+const unlock = () => { if (!lockTried) { lockTried = true; lockLandscape(); } if (audioInit()) applyMode(); };
 addEventListener('pointerdown', unlock, { passive: true });
 addEventListener('keydown', unlock);
 document.addEventListener('visibilitychange', () => {
@@ -1614,7 +1628,7 @@ loadSave();
 syncSys();
 {
   const bm = document.querySelector('meta[name=gembalap-build]');
-  $('#ver').textContent = 'Gembalap v0.3 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
+  $('#ver').textContent = 'Gembalap v0.3.1 · build ' + (bm && bm.content.indexOf('__') < 0 ? bm.content : 'dev');
 }
 /* ======================= PEMBUKA ======================= */
 const SKIP_INTRO = /skipintro/.test(location.search + location.hash);
@@ -1677,7 +1691,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  update(dt);
+  if (!needRotate()) update(dt);   // jeda saat HP tegak
   renderer.render(scene, camera);
 }
 requestAnimationFrame(frame);

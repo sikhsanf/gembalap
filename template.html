@@ -137,6 +137,11 @@ button{font-family:inherit}
 .fs{width:12px;height:24px}
 
 /* ---- pembuka ---- */
+#rotate{display:none;position:fixed;inset:0;z-index:1000;background:#2b2350;color:#fff;place-items:center;text-align:center;font-family:inherit}
+#rotate .rt-in{display:grid;gap:10px;justify-items:center;padding:24px}#rotate b{font-size:24px}#rotate small{opacity:.75;font-size:15px}
+#rotate .rt-ph{font-size:84px;animation:rtspin 2.2s ease-in-out infinite}
+@keyframes rtspin{0%,25%{transform:rotate(0)}65%,100%{transform:rotate(-90deg)}}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:grid}}
 #splash{position:absolute;inset:0;z-index:200;background:#fff;display:grid;place-items:center;opacity:1;transition:opacity 1s ease}
 #splash.hide{opacity:0;pointer-events:none}
 #splash.gone{display:none}
@@ -298,6 +303,7 @@ button{font-family:inherit}
   <!-- Pembuka: presented by + kartu judul -->
   <div id="titlecard"><div class="tt">GEMBALAP</div></div>
   <div id="whiteout"></div>
+  <div id="rotate"><div class="rt-in"><div class="rt-ph">📱</div><b>Putar HP-mu ke samping</b><small>Gembalap dimainkan mendatar</small></div></div>
   <div id="splash"><div class="sp-in"><small>presented by</small><b>Learnersfam</b></div></div>
 
   <div id="sys"><button class="ibtn" id="btn-set" aria-label="Pengaturan">⚙️</button><button class="ibtn" id="btn-music" aria-label="Musik">🎵</button><button class="ibtn" id="btn-mute" aria-label="Suara">🔊</button></div>
