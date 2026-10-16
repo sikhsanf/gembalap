@@ -33,4 +33,4 @@ Roadmap: v0.3 multiplayer (PeerJS), APK.
 - Mesin gambar diganti: kanvas 2D beresolusi rendah (tinggi 180 px) diperbesar tanpa penghalusan, jalan digambar per baris, semua benda adalah sprite piksel (mobil tampak belakang, pohon, rumah, gedung, bendera, gerbang finish).
 - Three.js dihapus; ukuran file turun dari ~600 KB menjadi ~85 KB.
 - Logika game, musik, menu, hujan, tabrakan, dan bensin tidak berubah.
-- Versi 3D voxel terakhir ada di tag `v0.3.1-3d`.
+- Versi 3D voxel terakhir ada di commit `cc75a28` (v0.3.1).
